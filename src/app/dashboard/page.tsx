@@ -2,11 +2,11 @@
 import { Suspense } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Loader2, AlertTriangle, Eye, Trash2 } from "lucide-react"; // Added Eye and Trash2
+import { PlusCircle, Loader2, AlertTriangle, Eye, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { getSeedPhraseMetadataAction } from "./_actions/dashboard-actions";
 import SeedPhraseTable from "./_components/seed-phrase-table";
-import DeleteAccountButton from './_components/delete-account-button'; // Import the new component
+import DeleteAccountButton from './_components/delete-account-button';
 import type { SeedPhraseMetadata } from '@/lib/definitions';
 
 // Component to fetch and display data, handling loading and errors
@@ -24,7 +24,11 @@ async function SeedPhraseList() {
     );
   }
 
-  if (!phrases || phrases.length === 0) {
+  // Note: The filtering of 'removed' phrases happens client-side in SeedPhraseTable
+  // This component just passes all fetched phrases down.
+  const allPhrases = phrases || [];
+
+  if (allPhrases.length === 0) {
     return (
        <div className="text-center py-12">
          <p className="text-muted-foreground">No seed phrases have been saved yet.</p>
@@ -35,14 +39,15 @@ async function SeedPhraseList() {
     );
   }
 
-  return <SeedPhraseTable phrases={phrases} />;
+  // Pass all phrases to the table; it will handle filtering based on localStorage
+  return <SeedPhraseTable phrases={allPhrases} />;
 }
 
 // Skeleton loader for the table
 function TableSkeleton() {
     return (
         <div className="space-y-4 p-4">
-             <div className="h-8 bg-muted rounded w-1/4 animate-pulse"></div> {/* Header pulse */}
+             <div className="h-8 bg-muted rounded w-1/4 animate-pulse"></div>
              <div className="space-y-2">
                  {[...Array(3)].map((_, i) => (
                      <div key={i} className="h-10 bg-muted/50 rounded w-full animate-pulse"></div>
@@ -53,7 +58,6 @@ function TableSkeleton() {
 }
 
 export default function DashboardPage() {
-  // Page is public, no authentication needed
 
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
@@ -76,19 +80,22 @@ export default function DashboardPage() {
           <CardTitle>Saved Seed Phrases</CardTitle>
           <CardDescription>
              All stored wallet information. Click the eye icon <Eye className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to reveal details,
-             or the trash icon <Trash2 className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to remove an entry from this view.
+             or the trash icon <Trash2 className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to remove an entry from this view. Removed entries are hidden locally and will not be deleted from the database.
           </CardDescription>
         </CardHeader>
         <CardContent>
-           {/* Use Suspense to handle loading state while data is fetched */}
            <Suspense fallback={<TableSkeleton />}>
                <SeedPhraseList />
            </Suspense>
         </CardContent>
       </Card>
-       {/* Use the new DeleteAccountButton component */}
-        <div className="mt-8 flex justify-center">
+
+        <div className="mt-8 flex flex-col items-center gap-4">
            <DeleteAccountButton />
+            {/* Security Warning moved here */}
+           <p className="text-destructive font-semibold text-center text-sm mt-4 flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" /> SECURITY WARNING: Keep your seed phrases and associated information private. Avoid screenshots or sharing. SeedVault cannot recover lost data.
+            </p>
        </div>
     </div>
   );

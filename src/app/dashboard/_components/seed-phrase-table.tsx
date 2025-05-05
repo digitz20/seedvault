@@ -11,7 +11,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-// Import AlertDialog for delete confirmation (optional, but good UX)
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,84 +31,82 @@ import {
   DialogClose,
   DialogFooter,
 } from "@/components/ui/dialog";
-// Added Trash2 icon
 import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2 } from "lucide-react";
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
-// Removed deleteSeedPhraseAction import
 import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
-import { Input } from '@/components/ui/input'; // For displaying revealed data
-import { Label } from '@/components/ui/label'; // For labeling revealed data
-import { Badge } from '@/components/ui/badge'; // To show wallet type nicely
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state in modal
-import { Textarea } from '@/components/ui/textarea'; // Import Textarea
-
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 
 interface SeedPhraseTableProps {
   phrases: SeedPhraseMetadata[];
 }
 
+const LOCAL_STORAGE_REMOVED_KEY = 'seedvault_removed_phrases';
+
 export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
-  const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
-  // Adjusted isLoading state to only track reveal
+  const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>([]);
+  const [removedPhraseIds, setRemovedPhraseIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
-  const [isRevealing, setIsRevealing] = useState(false); // Track loading state specifically for the modal reveal action
+  const [isRevealing, setIsRevealing] = useState(false);
   const [revealedData, setRevealedData] = useState<RevealedSeedPhraseData | null>(null);
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({}); // Track copy status per field
-  const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
-  const [phraseToDelete, setPhraseToDelete] = useState<SeedPhraseMetadata | null>(null); // State for delete confirmation
-
-  // Avoid hydration mismatch for Date formatting
+  const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [phraseToDelete, setPhraseToDelete] = useState<SeedPhraseMetadata | null>(null);
   const [isClient, setIsClient] = useState(false);
+
+  // Load removed IDs from localStorage and filter initial phrases on mount (client-side only)
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    try {
+      const storedRemovedIds = localStorage.getItem(LOCAL_STORAGE_REMOVED_KEY);
+      const initialRemovedIds = storedRemovedIds ? new Set<string>(JSON.parse(storedRemovedIds)) : new Set<string>();
+      setRemovedPhraseIds(initialRemovedIds);
+      // Filter the initial phrases based on the loaded removed IDs
+      setPhrases(initialPhrases.filter(p => !initialRemovedIds.has(p._id)));
+    } catch (error) {
+        console.error("Error reading removed phrases from localStorage:", error);
+        // If localStorage fails, just show all initial phrases
+        setPhrases(initialPhrases);
+    }
+  }, [initialPhrases]); // Rerun if initialPhrases changes
 
   // --- Decryption Placeholder ---
-  // Replace this with your actual client-side decryption logic.
-  // This should involve a key derived securely, likely something the user enters
-  // or manages, as storing the key alongside the data defeats the purpose.
   const decryptData = (encryptedData: string | undefined | null): string => {
-    // *** WARNING: THIS IS A PLACEHOLDER - IMPLEMENT REAL DECRYPTION ***
     if (!encryptedData) {
-        return "[Not Provided]"; // Handle cases where optional fields weren't saved
+        return "[Not Provided]";
     }
-    // This basic placeholder just removes the "ENCRYPTED(...)" wrapper.
-    // A real implementation would use a cryptographic library (e.g., SubtleCrypto)
-    // and a securely derived key.
     if (encryptedData.startsWith('ENCRYPTED(') && encryptedData.endsWith(')')) {
         return encryptedData.substring(10, encryptedData.length - 1);
     }
-    // If it's not in the expected encrypted format, return an error/indicator.
-    // This might happen if data was saved before the encryption logic or if encryption failed.
-    console.warn("Decryption attempt failed for data:", encryptedData); // Log unexpected format
+    console.warn("Decryption attempt failed for data:", encryptedData);
     return "[Decryption Error]";
-    // *** END PLACEHOLDER ***
   };
   // --- End Decryption Placeholder ---
 
   const handleReveal = async (phraseId: string) => {
-    // Use row-specific loading for the button, modal-specific for the fetch
     setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: true }));
-    setIsRevealing(true); // Show loading state inside the modal trigger
-    setRevealedData(null); // Clear previous data immediately
-    setIsRevealModalOpen(true); // Open the modal to show loading state
+    setIsRevealing(true);
+    setRevealedData(null);
+    setIsRevealModalOpen(true);
 
     try {
       const result = await revealSeedPhraseAction(phraseId);
       if (result.data) {
-        setRevealedData(result.data); // Set data only on success
-        // Modal is already open
+        setRevealedData(result.data);
       } else {
         toast({
           variant: 'destructive',
           title: 'Reveal Failed',
           description: result.error || 'Could not retrieve seed phrase details.',
         });
-        setIsRevealModalOpen(false); // Close modal if reveal fails
+        setIsRevealModalOpen(false);
       }
     } catch (error) {
       toast({
@@ -118,28 +115,48 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
         description: 'An unexpected error occurred while revealing the phrase.',
       });
       console.error("Reveal error:", error);
-      setIsRevealModalOpen(false); // Close modal on unexpected error
+      setIsRevealModalOpen(false);
     } finally {
       setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
-      setIsRevealing(false); // Stop modal loading state
+      setIsRevealing(false);
     }
   };
 
-  // Client-side only "delete" - removes from view, doesn't call backend
+  // Client-side "delete" - removes from view and persists the removal in localStorage
   const handleLocalDeleteConfirm = (phraseId: string) => {
+     // Update state first for immediate UI feedback
     setPhrases(prevPhrases => prevPhrases.filter(p => p._id !== phraseId));
-    toast({
-      title: 'Removed from View',
-      description: 'The seed phrase entry has been removed from this view. It has not been deleted from the database.',
-    });
+    const newRemovedIds = new Set(removedPhraseIds).add(phraseId);
+    setRemovedPhraseIds(newRemovedIds);
+
+    // Update localStorage (only on client)
+    if (isClient) {
+        try {
+            localStorage.setItem(LOCAL_STORAGE_REMOVED_KEY, JSON.stringify(Array.from(newRemovedIds)));
+             toast({
+               title: 'Removed from View',
+               description: 'The seed phrase entry has been hidden. It has not been deleted from the database.',
+             });
+        } catch (error) {
+            console.error("Error writing removed phrases to localStorage:", error);
+             toast({
+                variant: 'destructive',
+                title: 'Error Hiding Phrase',
+                description: 'Could not save the hidden state locally. The phrase might reappear on refresh.',
+             });
+             // Optionally revert state if saving fails critically? Depends on desired UX.
+             // setPhrases(initialPhrases.filter(p => !removedPhraseIds.has(p._id))); // Revert to previous state
+        }
+    }
+
     setPhraseToDelete(null); // Close confirmation dialog
   };
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
-     const textToCopy = text || ""; // Handle null/undefined
+     const textToCopy = text || "";
     navigator.clipboard.writeText(textToCopy).then(() => {
         setCopyStatus(prev => ({ ...prev, [fieldName]: true }));
-        setTimeout(() => setCopyStatus(prev => ({ ...prev, [fieldName]: false })), 1500); // Reset icon after 1.5s
+        setTimeout(() => setCopyStatus(prev => ({ ...prev, [fieldName]: false })), 1500);
         toast({ title: `${fieldName} copied to clipboard!`});
     }).catch(err => {
         console.error('Failed to copy:', err);
@@ -163,30 +180,42 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
           </TableRow>
         </TableHeader>
         <TableBody>
-          {phrases.length === 0 && (
+          {phrases.length === 0 && isClient && ( // Only show "No phrases" after client-side check
             <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                    No seed phrases found.
+                    No seed phrases found or all have been hidden.
                 </TableCell>
             </TableRow>
           )}
-          {phrases.map((phrase) => (
+          {!isClient && ( // Show skeleton rows while loading/hydrating
+             [...Array(3)].map((_, i) => (
+               <TableRow key={`skel-${i}`}>
+                 <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                 <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                 <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                 <TableCell className="text-right space-x-2">
+                   <Skeleton className="h-8 w-8 inline-block" />
+                   <Skeleton className="h-8 w-8 inline-block" />
+                 </TableCell>
+               </TableRow>
+             ))
+          )}
+          {isClient && phrases.map((phrase) => (
             <TableRow key={phrase._id}>
               <TableCell className="font-medium">{phrase.walletName}</TableCell>
               <TableCell>
                  <Badge variant="secondary" className="whitespace-nowrap">{phrase.walletType}</Badge>
               </TableCell>
               <TableCell>
-                 {/* Format date only on client-side */}
                  {isClient ? format(new Date(phrase.createdAt), "PPp") : <Skeleton className="h-4 w-32" />}
               </TableCell>
               <TableCell className="text-right space-x-2">
                 {/* Reveal Button */}
                 <Button
                    variant="outline"
-                   size="icon" // Changed to icon size for consistency
+                   size="icon"
                    onClick={() => handleReveal(phrase._id)}
-                   disabled={isLoading[`reveal-${phrase._id}`] || isRevealing} // Disable while modal is loading too
+                   disabled={isLoading[`reveal-${phrase._id}`] || isRevealing}
                    aria-label={`Reveal details for ${phrase.walletName}`}
                    title={`Reveal details for ${phrase.walletName}`}
                  >
@@ -205,12 +234,11 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              size="icon"
                              aria-label={`Remove ${phrase.walletName} from view`}
                              title={`Remove ${phrase.walletName} from view`}
-                             onClick={() => setPhraseToDelete(phrase)} // Set phrase for confirmation
+                             onClick={() => setPhraseToDelete(phrase)}
                          >
                              <Trash2 className="h-4 w-4" />
                          </Button>
                      </AlertDialogTrigger>
-                     {/* Confirmation Dialog */}
                      <AlertDialogContent>
                          <AlertDialogHeader>
                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -238,7 +266,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
 
        {/* Reveal Modal using Dialog */}
       <Dialog open={isRevealModalOpen} onOpenChange={setIsRevealModalOpen}>
-         <DialogContent className="sm:max-w-[550px] w-[95vw]"> {/* Adjust width */}
+         <DialogContent className="sm:max-w-[550px] w-[95vw]">
             <DialogHeader>
               <DialogTitle className="flex items-center">
                  <LockKeyhole className="mr-2 h-5 w-5 text-primary"/> Revealed Details
@@ -246,10 +274,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                {!isRevealing && revealedData && (
                  <DialogDescription>
                    Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).
-                   <br />
-                   <span className="text-destructive font-semibold mt-2 block flex items-center">
-                     <AlertTriangle className="mr-1 h-4 w-4 flex-shrink-0" /> SECURITY WARNING: Keep this information private. Avoid screenshots or sharing.
-                   </span>
+                   {/* Removed security warning from here */}
                  </DialogDescription>
                )}
                {isRevealing && (
@@ -264,8 +289,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                  </div>
              ) : revealedData ? (
                  <div className="grid gap-4 py-4">
-                    {/* Decrypted fields will appear here */}
-                    {/* Associated Email */}
                      <div className="grid grid-cols-[100px_1fr_auto] items-center gap-3">
                          <Label htmlFor="revealed-email" className="text-right font-medium text-sm pr-2">
                              Assoc. Email
@@ -274,7 +297,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              id="revealed-email"
                              value={decryptData(revealedData.encryptedEmail)}
                              readOnly
-                             className="col-span-1 font-mono text-xs sm:text-sm h-9" // Smaller font on mobile
+                             className="col-span-1 font-mono text-xs sm:text-sm h-9"
                              aria-label="Revealed Associated Email"
                          />
                          <Button
@@ -288,7 +311,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              {copyStatus['Email'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
-                      {/* Associated Password */}
                      <div className="grid grid-cols-[100px_1fr_auto_auto] items-center gap-3">
                          <Label htmlFor="revealed-password" className="text-right font-medium text-sm pr-2">
                             Assoc. Pass
@@ -301,7 +323,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              className="col-span-1 font-mono text-xs sm:text-sm h-9"
                              aria-label="Revealed Associated Password"
                          />
-                         {/* Toggle Visibility Button */}
                          <Button
                               variant="ghost"
                               size="icon"
@@ -312,7 +333,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
-                         {/* Copy Button */}
                           <Button
                              variant="ghost"
                              size="icon"
@@ -324,18 +344,16 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              {copyStatus['Password'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
-                      {/* Seed Phrase */}
                      <div className="grid grid-cols-[100px_1fr_auto] items-start gap-3">
                          <Label htmlFor="revealed-seed" className="text-right font-medium text-sm mt-2 pr-2">
                              Seed Phrase
                          </Label>
-                         {/* Use textarea for better formatting of multi-word phrases */}
                          <Textarea
                             id="revealed-seed"
                             value={decryptData(revealedData.encryptedSeedPhrase)}
                             readOnly
-                            rows={4} // Adjust rows as needed
-                            className="col-span-1 font-mono text-xs sm:text-sm p-2 border rounded-md bg-muted/50 resize-none h-auto" // Allow height adjustment
+                            rows={4}
+                            className="col-span-1 font-mono text-xs sm:text-sm p-2 border rounded-md bg-muted/50 resize-none h-auto"
                             aria-label="Revealed Seed Phrase"
                          />
                           <Button
@@ -349,18 +367,15 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                             {copyStatus['Seed Phrase'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
-                      {/* Add Disclaimer about decryption */}
                      <p className="text-xs text-muted-foreground text-center pt-2">
                          Data is shown after applying placeholder decryption. Implement robust client-side decryption using a secure key derivation method.
                      </p>
                  </div>
              ) : (
-                 // Handle case where reveal succeeded but data is missing (shouldn't happen with validation)
                   <div className="text-center py-4 text-muted-foreground">
                       Could not load seed phrase details.
                   </div>
              )}
-             {/* Modal Footer */}
              <DialogFooter>
                  <DialogClose asChild>
                      <Button type="button" variant="secondary">
