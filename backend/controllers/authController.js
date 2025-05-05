@@ -87,7 +87,7 @@ const loginUser = async (req, res) => {
 
         // If credentials are correct, generate a JWT
         const payload = {
-            userId: user._id, // Include user ID in the token payload
+            userId: user._id.toString(), // Convert ObjectId to string
             email: user.email // Optionally include email
         };
 

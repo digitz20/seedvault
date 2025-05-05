@@ -300,9 +300,9 @@ export type LoginAndSaveFormData = z.infer<typeof LoginAndSaveSchema>;
 
 
 // Schema representing the user data stored in the JWT / session cookie
+// Ensure userId is defined as a string
 export const userClientDataSchema = z.object({
-  // Changed userId to be optional as per backend JWT payload structure
-  userId: z.string(),
+  userId: z.string().min(1, { message: 'User ID cannot be empty.' }), // Make sure it's a non-empty string
   email: z.string().email(),
 });
 export type UserClientData = z.infer<typeof userClientDataSchema>;

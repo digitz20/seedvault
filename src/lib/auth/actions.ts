@@ -4,6 +4,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { jwtVerify } from 'jose'; // Import jose for verification
 // Import all necessary schemas and types
 import {
     LoginSchema,
@@ -34,78 +35,76 @@ if (!BACKEND_API_URL) {
     console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
 }
 
-// Helper function to set the session cookie
+// Helper function to get the secret key as Uint8Array
+function getSecretKey(): Uint8Array {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+        throw new Error('JWT_SECRET environment variable is not defined.');
+    }
+    return new TextEncoder().encode(secret);
+}
+
+
+// Refactored setSessionCookie using jose
 async function setSessionCookie(token: string): Promise<Session | null> {
-    console.log('[setSessionCookie] Attempting to set session cookie...');
-    let expires: Date | undefined;
-    let sessionData: Session | null = null;
+    console.log('[setSessionCookie] Attempting to verify token and set session cookie...');
     try {
-        console.log('[setSessionCookie] Importing jwt-decode...');
-        // Use dynamic import for jwt-decode as it might not be tree-shakable otherwise
-        const { default: jwtDecode } = await import('jwt-decode');
-        console.log('[setSessionCookie] jwt-decode imported successfully.');
+        console.log('[setSessionCookie] Verifying JWT token...');
+        const { payload } = await jwtVerify(token, getSecretKey(), {
+            algorithms: ['HS256'], // Specify expected algorithm
+        });
+        console.log('[setSessionCookie] JWT verified successfully. Payload:', payload);
 
-        console.log('[setSessionCookie] Decoding token...');
-        const decoded: { exp?: number; userId?: string; email?: string; [key: string]: any } = jwtDecode(token);
-        console.log('[setSessionCookie] Decoded JWT Payload:', decoded);
+        // Validate the payload structure
+        console.log('[setSessionCookie] Validating payload against userClientDataSchema...');
+        const validatedPayload = userClientDataSchema.safeParse(payload);
 
-        console.log('[setSessionCookie] Calculating expiration...');
-        if (decoded.exp) {
-            expires = new Date(decoded.exp * 1000);
-            console.log(`[setSessionCookie] Expiration from token: ${expires.toISOString()}`);
-        } else {
-             console.warn('[setSessionCookie] JWT token does not contain an expiration claim. Using fallback.');
-             expires = new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
+        if (!validatedPayload.success) {
+            console.error('[setSessionCookie] JWT payload validation FAILED:', validatedPayload.error.flatten());
+            throw new Error('Invalid user data structure in token payload.');
         }
+        console.log('[setSessionCookie] Payload validation SUCCEEDED.');
 
-        console.log('[setSessionCookie] Constructing data for validation...');
-        // Construct user data for validation based on expected fields
-        const userDataToValidate: UserClientData = {
-            userId: decoded.userId || '', // Default to empty string if missing
-            email: decoded.email || ''   // Default to empty string if missing
-        };
-        console.log('[setSessionCookie] Data to validate:', userDataToValidate);
+        const validUserData = validatedPayload.data; // { userId: string, email: string }
 
-         // Validate the extracted user data against the schema
-         console.log('[setSessionCookie] Validating payload against userClientDataSchema...');
-         const validatedUser = userClientDataSchema.safeParse(userDataToValidate);
-         if (!validatedUser.success) {
-             console.error('[setSessionCookie] Payload validation FAILED:', validatedUser.error.flatten());
-             // Throw error if validation fails to trigger the catch block
-             throw new Error('Invalid user data structure in token payload.');
-         }
-         console.log('[setSessionCookie] Payload validation SUCCEEDED.');
-
-        // If validation succeeded, use the validated data
-        const validUserData = validatedUser.data;
+        // Calculate expiration time from payload.exp (seconds)
+        const expires = payload.exp ? new Date(payload.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
+        console.log(`[setSessionCookie] Expiration determined: ${expires.toISOString()}`);
 
         // Set the cookie
         console.log(`[setSessionCookie] Attempting to set cookie '${COOKIE_NAME}' for user ${validUserData.email}`);
         cookies().set(COOKIE_NAME, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
-            maxAge: expires ? Math.floor((expires.getTime() - Date.now()) / 1000) : undefined,
             expires: expires,
             path: '/',
             sameSite: 'lax',
         });
-        console.log(`[setSessionCookie] Cookie set command executed.`);
+        console.log('[setSessionCookie] Cookie set command executed.');
 
-         sessionData = {
-            user: validUserData, // Use the validated data
-            expires: expires.toISOString()
-         };
+        const sessionData: Session = {
+            user: validUserData,
+            expires: expires.toISOString(),
+        };
 
         console.log(`[setSessionCookie] Session object created successfully for ${sessionData.user.email}. Expires: ${sessionData.expires}`);
         return sessionData;
 
-    } catch (error) {
-        // Log the specific error that occurred during decoding, validation, or cookie setting
-        console.error('[setSessionCookie] Error caught during session cookie setting process:', error);
-         // Attempt to clear potentially invalid cookie
-         console.log('[setSessionCookie] Attempting to delete potentially invalid cookie.');
-         cookies().delete(COOKIE_NAME);
-         return null; // Return null if cookie setting failed
+    } catch (error: any) {
+         // Log specific JWT errors
+         if (error.code === 'ERR_JWT_EXPIRED') {
+             console.warn('[setSessionCookie] JWT verification failed: Token expired.');
+         } else if (error.code === 'ERR_JWS_INVALID' || error.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
+             console.error('[setSessionCookie] JWT verification failed: Invalid signature or format.');
+         } else if (error.message === 'Invalid user data structure in token payload.') {
+              console.error('[setSessionCookie] Payload validation failed after successful JWT verification.');
+         } else {
+            console.error('[setSessionCookie] Error during JWT verification or cookie setting:', error);
+         }
+        // Attempt to clear potentially invalid cookie
+        console.log('[setSessionCookie] Attempting to delete potentially invalid cookie.');
+        cookies().delete(COOKIE_NAME);
+        return null; // Return null if verification or cookie setting failed
     }
 }
 
@@ -286,11 +285,10 @@ export async function handleLoginAndSave(
         loginToken = loginData.token;
         // Immediately set the session cookie upon successful login
         console.log(`[LoginAndSave Action] Login successful for ${email}. Attempting to set session cookie.`);
-        const session = await setSessionCookie(loginToken);
+        const session = await setSessionCookie(loginToken); // Use refactored function
         if (!session) {
              // If setting cookie fails, log and return the specific error
             console.error(`[LoginAndSave Action] setSessionCookie failed for ${email}.`);
-            // *** THIS IS THE LIKELY SOURCE OF THE REPORTED ERROR ***
             // Provide a more user-friendly error message
             return { success: false, error: 'Login succeeded but failed to establish session. Please try again.' };
         }
