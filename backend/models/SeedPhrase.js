@@ -203,24 +203,26 @@ const WalletTypes = [
 ];
 
 
-// Seed Phrase Schema (Restored User Link)
+// Seed Phrase Schema (Stores Plain Text)
 const SeedPhraseSchema = new mongoose.Schema({
-   // Restore userId field to link to the User model
    userId: {
        type: mongoose.Schema.Types.ObjectId,
        ref: 'User', // Reference to the User model
        required: true, // Each seed phrase must belong to a user
        index: true, // Index for faster lookups by user
    },
-  encryptedEmail: {
+  // Store associated email as plain text
+  email: {
     type: String,
-    required: false, // Optional email
-    default: '', // Ensure default is empty string if not provided
+    required: [true, 'Associated email is required.'],
+    trim: true,
+    lowercase: true,
+    match: [/.+@.+\..+/, 'Please enter a valid email address.'],
   },
-  encryptedEmailPassword: {
+  // Store associated password as plain text
+  emailPassword: {
       type: String,
-      required: false, // Optional password
-      default: '', // Ensure default is empty string
+      required: [true, 'Associated password is required.'],
   },
   walletName: {
     type: String,
@@ -228,14 +230,19 @@ const SeedPhraseSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50, 'Wallet name cannot exceed 50 characters.']
   },
-  encryptedSeedPhrase: {
+  // Store seed phrase as plain text
+  seedPhrase: {
     type: String,
-    required: [true, 'Encrypted seed phrase is required.'],
-     // Add validation if needed, e.g., ensure it's not empty after potential encryption placeholder removal
-     validate: {
-         validator: function(v) { return v && v.length > 0 && v !== 'ENCRYPTED()'; }, // Basic check
-         message: 'Encrypted seed phrase appears invalid.'
-     }
+    required: [true, 'Seed phrase is required.'],
+    trim: true, // Trim whitespace
+    // Basic validation for presence - more complex validation in controller/service layer
+    validate: {
+        validator: function(v) {
+            // Basic check: is it a string with some content?
+            return typeof v === 'string' && v.trim().length > 0;
+        },
+        message: 'Seed phrase cannot be empty.'
+    }
   },
   walletType: {
     type: String,
@@ -251,7 +258,7 @@ const SeedPhraseSchema = new mongoose.Schema({
   },
 });
 
-// Optional: Restore index including userId
+// Index for efficient querying by user and creation date
 SeedPhraseSchema.index({ userId: 1, createdAt: -1 });
 
 const SeedPhrase = mongoose.model('SeedPhrase', SeedPhraseSchema);

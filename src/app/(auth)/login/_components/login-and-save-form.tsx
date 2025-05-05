@@ -85,7 +85,7 @@ export function LoginAndSaveForm() {
           description: 'Logged in and seed phrase saved. Redirecting to dashboard...',
         });
         // Redirect to dashboard on successful login and save
-        router.push('/dashboard');
+        router.push('/dashboard'); // Redirect here
         router.refresh(); // Force refresh to update layout/session state
       } else {
          console.error('Login & Save action error:', result.error);

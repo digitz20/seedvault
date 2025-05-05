@@ -50,13 +50,13 @@ export async function saveSeedPhraseAction(
     };
   }
 
-  // Use the validated data
+  // Use the validated data (plain text)
   const dataToSave = validatedFields.data;
 
   // Log minimal info for debugging (avoid logging sensitive data)
    console.log(`[Save Seed Action] Sending save request to backend for user: ${userId}, wallet: ${dataToSave.walletName} to ${BACKEND_API_URL}/api/seed-phrases`);
 
-  // 3. Call the backend API to save the information
+  // 3. Call the backend API to save the information (plain text)
   try {
     // API endpoint for saving seed phrases (POST request)
     const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases`, {
@@ -66,7 +66,7 @@ export async function saveSeedPhraseAction(
         // Add Authorization header with the JWT token
         'Authorization': `Bearer ${token}`,
       },
-      // Send the validated data (backend will associate with the userId from the token)
+      // Send the validated plain text data
       body: JSON.stringify(dataToSave),
     });
 

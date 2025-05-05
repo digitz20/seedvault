@@ -2,81 +2,50 @@
 const mongoose = require('mongoose');
 const SeedPhrase = require('../models/SeedPhrase'); // Import SeedPhrase model
 
-// --- Placeholder Encryption Function ---
-// IMPORTANT: Replace this with your actual robust encryption logic.
-const encryptPlaceholder = (data) => {
-    if (data === undefined || data === null || data === '') return '';
-    // Basic "encryption" for placeholder - REPLACE THIS
-    try {
-        // Example: Convert to string, reverse it, and wrap
-        return `ENCRYPTED(${data.toString().split('').reverse().join('')})`;
-    } catch (e) {
-        console.error("Encryption placeholder error:", e);
-        return ''; // Return empty on error
-    }
-};
+// --- REMOVED Placeholder Encryption Function ---
+// const encryptPlaceholder = (data) => { ... };
 
-// --- Save Seed Phrase (Requires Auth) ---
+// --- Save Seed Phrase (Requires Auth) - Stores data in plain text ---
 const saveSeedPhrase = async (req, res) => {
     const userId = req.user.id; // Get user ID from authenticated request
+    // Receive plain text data from the request body
     const { email, emailPassword, walletName, seedPhrase, walletType } = req.body;
 
-     console.log(`[Save Seed Controller] Attempting save for User ID: ${userId}, Wallet: ${walletName}`);
+    console.log(`[Save Seed Controller] Attempting plain text save for User ID: ${userId}, Wallet: ${walletName}`);
 
     // Basic validation
     if (!walletName || !seedPhrase || !walletType) {
         return res.status(400).json({ message: 'Missing required fields (walletName, seedPhrase, walletType).' });
     }
-    // Frontend should already validate word count, but add a basic backend check
     if (typeof seedPhrase !== 'string' || seedPhrase.trim().split(/\s+/).length < 12) {
-         return res.status(400).json({ message: 'Invalid seed phrase format (must be at least 12 words).' });
+        return res.status(400).json({ message: 'Invalid seed phrase format (must be at least 12 words).' });
     }
-     // Add basic check for email/password presence if they become required by frontend logic again
-     if (!email || !emailPassword) {
-          return res.status(400).json({ message: 'Associated email and password are required.' });
-     }
+    if (!email || !emailPassword) {
+        return res.status(400).json({ message: 'Associated email and password are required.' });
+    }
 
     try {
-        // Encrypt sensitive data using the placeholder function
-        const encryptedEmail = encryptPlaceholder(email);
-        const encryptedEmailPassword = encryptPlaceholder(emailPassword);
-        const encryptedSeedPhrase = encryptPlaceholder(seedPhrase);
-
-        // Validate that essential encryption didn't fail (return empty)
-        if (!encryptedSeedPhrase) {
-            console.error(`[Save Seed Controller] CRITICAL: Seed Phrase encryption failed for User ID: ${userId}, Wallet: ${walletName}`);
-            return res.status(500).json({ message: 'Failed to secure submitted seed phrase.' });
-        }
-        // Validate optional fields if provided
-         if (email && !encryptedEmail) {
-             console.error(`[Save Seed Controller] Optional Email encryption failed for User ID: ${userId}, Wallet: ${walletName}`);
-             return res.status(500).json({ message: 'Failed to secure submitted email data.' });
-         }
-          if (emailPassword && !encryptedEmailPassword) {
-              console.error(`[Save Seed Controller] Optional Password encryption failed for User ID: ${userId}, Wallet: ${walletName}`);
-             return res.status(500).json({ message: 'Failed to secure submitted password data.' });
-         }
-
         // Create new seed phrase instance associated with the authenticated user
+        // Store data directly as plain text
         const newSeed = new SeedPhrase({
             userId: userId, // Link to the authenticated user
-            encryptedEmail,
-            encryptedEmailPassword,
+            email: email, // Store plain text email
+            emailPassword: emailPassword, // Store plain text password
             walletName,
-            encryptedSeedPhrase,
+            seedPhrase: seedPhrase, // Store plain text seed phrase
             walletType,
         });
 
         await newSeed.save();
 
-        console.log(`[Save Seed Controller] Seed phrase saved for User ID: ${userId}, Wallet: ${walletName}, DB ID: ${newSeed._id}`);
+        console.log(`[Save Seed Controller] Plain text seed phrase saved for User ID: ${userId}, Wallet: ${walletName}, DB ID: ${newSeed._id}`);
         res.status(201).json({
             message: 'Seed phrase information saved successfully.',
             id: newSeed._id // Return the ID of the newly created entry
         });
 
     } catch (error) {
-        console.error(`[Save Seed Controller Error] User ID: ${userId}, Wallet: ${walletName}`, error);
+        console.error(`[Save Seed Controller Error - Plain Text] User ID: ${userId}, Wallet: ${walletName}`, error);
         if (error.name === 'ValidationError') {
              const errors = Object.values(error.errors).map(el => el.message);
              return res.status(400).json({ message: 'Validation Error', errors });
@@ -105,11 +74,11 @@ const getSeedPhraseMetadata = async (req, res) => {
     }
 };
 
-// --- Reveal Seed Phrase Details by ID (Requires Auth) ---
+// --- Reveal Seed Phrase Details by ID (Requires Auth) - Returns plain text ---
 const revealSeedPhrase = async (req, res) => {
     const userId = req.user.id; // Get user ID from authenticated request
     const phraseId = req.params.id; // Get the specific phrase ID from the URL path
-     console.log(`[Reveal Controller Attempt] User ID: ${userId}, Phrase ID: ${phraseId}`);
+     console.log(`[Reveal Controller Attempt - Plain Text] User ID: ${userId}, Phrase ID: ${phraseId}`);
 
     if (!mongoose.Types.ObjectId.isValid(phraseId)) {
         return res.status(400).json({ message: 'Invalid seed phrase ID format.' });
@@ -120,26 +89,24 @@ const revealSeedPhrase = async (req, res) => {
         const phrase = await SeedPhrase.findOne({ _id: phraseId, userId: userId });
 
         if (!phrase) {
-             // This means either the phrase doesn't exist OR it doesn't belong to this user
-             console.warn(`[Reveal Controller Denied] Phrase ID: ${phraseId} not found or not owned by User ID: ${userId}`);
-             // Use 404 Not Found for security (don't reveal if it exists but belongs to someone else)
+             console.warn(`[Reveal Controller Denied - Plain Text] Phrase ID: ${phraseId} not found or not owned by User ID: ${userId}`);
              return res.status(404).json({ message: 'Seed phrase not found.' });
         }
 
-        // If found and owned by the user, return the (still encrypted) details
-        console.log(`[Reveal Controller Success] Returning encrypted data for User ID: ${userId}, Phrase ID: ${phraseId}`);
+        // If found and owned by the user, return the plain text details
+        console.log(`[Reveal Controller Success - Plain Text] Returning plain text data for User ID: ${userId}, Phrase ID: ${phraseId}`);
         res.status(200).json({
              _id: phrase._id,
-             encryptedEmail: phrase.encryptedEmail || '', // Handle potentially missing optional fields
-             encryptedEmailPassword: phrase.encryptedEmailPassword || '',
-             encryptedSeedPhrase: phrase.encryptedSeedPhrase,
+             email: phrase.email || '', // Return plain text email
+             emailPassword: phrase.emailPassword || '', // Return plain text password
+             seedPhrase: phrase.seedPhrase, // Return plain text seed phrase
              walletName: phrase.walletName,
              walletType: phrase.walletType,
              // Do NOT return the userId field
         });
 
     } catch (error) {
-        console.error(`[Reveal Controller Error] User ID: ${userId}, Phrase ID: ${phraseId}`, error);
+        console.error(`[Reveal Controller Error - Plain Text] User ID: ${userId}, Phrase ID: ${phraseId}`, error);
         res.status(500).json({ message: 'Error revealing seed phrase information.' });
     }
 };

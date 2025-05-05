@@ -227,7 +227,8 @@ export const seedPhraseFormSchema = z.object({
     .describe('The email address associated with the specific wallet or service.'),
   emailPassword: z.string()
     .min(1, { message: 'Associated password cannot be empty.' })
-    .max(100, { message: 'Password seems too long.' })
+    // Removed max length validation as it's plain text
+    // .max(100, { message: 'Password seems too long.' })
     .describe('The password associated with the specific wallet or service. Not your SeedVault login password.'),
   walletName: z
     .string()
@@ -253,12 +254,12 @@ export const seedPhraseMetadataSchema = z.object({
 
 export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 
-// Schema for the data returned when revealing a seed phrase
+// Schema for the data returned when revealing a seed phrase (plain text)
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
-  encryptedEmail: z.string().optional().or(z.literal('')),
-  encryptedEmailPassword: z.string().optional().or(z.literal('')),
-  encryptedSeedPhrase: z.string(),
+  email: z.string().optional().or(z.literal('')), // Plain text email
+  emailPassword: z.string().optional().or(z.literal('')), // Plain text password
+  seedPhrase: z.string(), // Plain text seed phrase
   walletName: z.string(),
   walletType: z.enum(WalletTypes),
 });
@@ -300,6 +301,7 @@ export type LoginAndSaveFormData = z.infer<typeof LoginAndSaveSchema>;
 
 // Schema representing the user data stored in the JWT / session cookie
 export const userClientDataSchema = z.object({
+  // Changed userId to be optional as per backend JWT payload structure
   userId: z.string(),
   email: z.string().email(),
 });

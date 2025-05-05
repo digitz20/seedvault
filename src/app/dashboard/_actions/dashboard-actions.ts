@@ -3,7 +3,7 @@
 
 import {
     seedPhraseMetadataSchema,
-    revealedSeedPhraseSchema
+    revealedSeedPhraseSchema // Use the updated schema for plain text
 } from '@/lib/definitions';
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitions';
 import { cookies } from 'next/headers'; // Import cookies
@@ -26,32 +26,20 @@ function getAuthToken(): string | undefined {
 
 // Action to get the authenticated user's seed phrase metadata
 export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhraseMetadata[]; error?: string }> {
-    // Get auth token
     const token = getAuthToken();
     if (!token) {
         console.warn('[Get Metadata Action] No auth token found.');
         return { error: 'Authentication required. Please log in.' };
     }
 
-    // Optional: Verify auth server-side before making the call (adds latency but more secure)
-    /*
-    try {
-        await verifyAuth();
-    } catch (error) {
-        console.error('[Get Metadata Action] Auth verification failed:', error);
-        return { error: 'Authentication failed. Please log in again.' };
-    }
-    */
-
     try {
         console.log(`[Get Metadata Action] Fetching metadata from backend: ${BACKEND_API_URL}/api/seed-phrases/metadata`);
-        // Updated API endpoint for fetching user-specific metadata
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/metadata`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`, // Add Authorization header
+                'Authorization': `Bearer ${token}`,
             },
-            cache: 'no-store', // Ensure fresh data is fetched every time for the dashboard
+            cache: 'no-store',
         });
 
         if (!response.ok) {
@@ -62,7 +50,6 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
                  console.error('[Get Metadata Action] Backend error:', { status: response.status, errorData });
                  if (response.status === 401 || response.status === 403) {
                       errorMessage = 'Authentication failed. Please log in again.';
-                      // Optionally clear cookie here? Be careful with side effects in actions.
                  }
              } catch (e) {
                  console.error('[Get Metadata Action] Failed to fetch metadata, could not parse error response:', response.status, response.statusText);
@@ -73,8 +60,6 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
         }
 
         const data = await response.json();
-
-        // Validate the fetched data against the metadata schema array
         const validatedData = z.array(seedPhraseMetadataSchema).safeParse(data);
 
         if (!validatedData.success) {
@@ -96,7 +81,7 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
     }
 }
 
-// Action to reveal the (still encrypted) details of a specific seed phrase by its ID (requires auth)
+// Action to reveal the plain text details of a specific seed phrase by its ID (requires auth)
 export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?: RevealedSeedPhraseData; error?: string }> {
     const token = getAuthToken();
     if (!token) {
@@ -109,14 +94,13 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
     }
 
     try {
-         console.log(`[Reveal Action] Sending reveal request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`);
-        // API endpoint to reveal a specific phrase by ID (backend enforces ownership)
+         console.log(`[Reveal Action - Plain Text] Sending reveal request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`);
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`, // Add Authorization header
+                'Authorization': `Bearer ${token}`,
             },
-            cache: 'no-store', // Don't cache revealed data heavily
+            cache: 'no-store',
         });
 
         if (!response.ok) {
@@ -124,11 +108,11 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
              try {
                  const errorData = await response.json();
                  errorMessage = errorData.message || (response.status === 404 ? 'Seed phrase not found or access denied.' : errorMessage);
-                 console.error('[Reveal Action] Backend error:', { status: response.status, errorData, phraseId });
+                 console.error('[Reveal Action - Plain Text] Backend error:', { status: response.status, errorData, phraseId });
                   if (response.status === 401 || response.status === 403) errorMessage = 'Authentication failed.';
                   if (response.status === 404) errorMessage = 'Seed phrase not found or access denied.';
              } catch (e) {
-                  console.error('[Reveal Action] Failed to reveal data, could not parse error response:', response.status, response.statusText, phraseId);
+                  console.error('[Reveal Action - Plain Text] Failed to reveal data, could not parse error response:', response.status, response.statusText, phraseId);
                  errorMessage = `Failed to reveal data: ${response.statusText || 'Unknown server error'}`;
                   if (response.status === 401 || response.status === 403) errorMessage = 'Authentication failed.';
                   if (response.status === 404) errorMessage = 'Seed phrase not found or access denied.';
@@ -138,18 +122,18 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 
         const data = await response.json();
 
-        // Validate the revealed data against the specific reveal schema
+        // Validate the revealed data against the updated plain text reveal schema
         const validatedData = revealedSeedPhraseSchema.safeParse(data);
 
         if (!validatedData.success) {
-             console.error("[Reveal Action] Reveal Data Validation Error:", validatedData.error.flatten(), { phraseId });
+             console.error("[Reveal Action - Plain Text] Reveal Data Validation Error:", validatedData.error.flatten(), { phraseId });
              return { error: 'Received invalid data format from server.' };
         }
 
-        return { data: validatedData.data };
+        return { data: validatedData.data }; // Return plain text data
 
     } catch (error) {
-        console.error(`[Reveal Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
+        console.error(`[Reveal Action - Plain Text] Network or unexpected error for Phrase ID: ${phraseId}`, error);
          let detailedError = 'An unknown network error occurred.';
          if (error instanceof TypeError && error.message.includes('fetch failed')) {
              detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
@@ -178,7 +162,7 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${token}`, // Add Authorization header
+                'Authorization': `Bearer ${token}`,
             },
         });
 
