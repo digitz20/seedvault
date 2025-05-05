@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban } from 'lucide-react'; // Added icons, including Ban for Cancel
+import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban, Eye, EyeOff } from 'lucide-react'; // Added icons, including Ban for Cancel and Eye icons
 import { useRouter } from 'next/navigation'; // Use Next.js navigation
 import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 
@@ -42,6 +42,7 @@ export function SeedPhraseForm() {
   const { toast } = useToast();
   const router = useRouter(); // Initialize router
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   // Update useForm default values and type
   // These fields are for the specific wallet/service being saved
@@ -115,6 +116,10 @@ export function SeedPhraseForm() {
       router.push('/dashboard'); // Navigate back to the dashboard
   }
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  }
+
 
   return (
     <Form {...form}>
@@ -149,9 +154,29 @@ export function SeedPhraseForm() {
            render={({ field }) => (
              <FormItem>
                <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4 text-muted-foreground" /> Associated Password *</FormLabel>
-               <FormControl>
-                 <Input type="password" placeholder="Password for this wallet/service" {...field} autoComplete="new-password" required />
-               </FormControl>
+               <div className="relative">
+                 <FormControl>
+                   <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password for this wallet/service"
+                      {...field}
+                      autoComplete="new-password"
+                      required
+                      className="pr-10" // Add padding to prevent text overlap with button
+                   />
+                 </FormControl>
+                 <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={togglePasswordVisibility}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+               </div>
                <FormDescription>The password used for this specific wallet or service account. This is NOT your SeedVault login password.</FormDescription>
                <FormMessage />
              </FormItem>
