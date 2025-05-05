@@ -98,8 +98,9 @@ export const WalletTypes = [
 // --- Seed Phrase Schema ---
 // Schema for data sent FROM the frontend form TO the backend API
 export const seedPhraseFormSchema = z.object({
+  // userId is added server-side via the authenticated token
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  emailPassword: z.string().min(1, { message: 'Email password cannot be empty.' })
+  emailPassword: z.string().min(1, { message: 'Email/Wallet password cannot be empty.' })
     .max(100, { message: 'Password seems too long.'}), // Basic check
   walletName: z
     .string()
@@ -129,11 +130,58 @@ export const seedPhraseFormSchema = z.object({
 
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
+// Schema for the metadata returned for the dashboard list
+export const seedPhraseMetadataSchema = z.object({
+  _id: z.string(), // MongoDB ObjectId as string
+  walletName: z.string(),
+  walletType: z.enum(WalletTypes),
+  createdAt: z.string().datetime(), // Date as ISO string
+});
 
-// --- REMOVED Schemas below as Login/Signup/Dashboard are removed ---
-// seedPhraseMetadataSchema
-// revealedSeedPhraseSchema
-// signupSchema
-// loginSchema
-// loginResponseSchema
-// UserClientData type
+export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
+
+// Schema for the data returned when revealing a seed phrase (contains encrypted fields)
+export const revealedSeedPhraseSchema = z.object({
+  _id: z.string(),
+  encryptedEmail: z.string(),
+  encryptedEmailPassword: z.string(),
+  encryptedSeedPhrase: z.string(),
+  walletName: z.string(),
+  walletType: z.enum(WalletTypes),
+});
+
+export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
+
+
+// --- Authentication Schemas ---
+export const signupSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z
+    .string()
+    .min(8, { message: 'Password must be at least 8 characters long.' }),
+});
+
+export type SignupFormData = z.infer<typeof signupSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(1, { message: 'Password cannot be empty.' }),
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;
+
+// Expected user data shape (excluding sensitive info like password hash)
+export const userClientDataSchema = z.object({
+  id: z.string(), // User ID from database (_id)
+  email: z.string().email(),
+});
+
+export type UserClientData = z.infer<typeof userClientDataSchema>;
+
+// Schema for the response from login/signup backend endpoints
+export const authResponseSchema = z.object({
+  token: z.string(),
+  user: userClientDataSchema,
+});
+
+export type AuthResponseData = z.infer<typeof authResponseSchema>;

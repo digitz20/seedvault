@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import type * as z from 'zod';
 // Use the schema specifically for the form data sent to the backend
+// This schema still includes email/emailPassword, but they now refer to the wallet's credentials, not the user's login.
 import { seedPhraseFormSchema, WalletTypes } from '@/lib/definitions';
 import type { SeedPhraseFormData } from '@/lib/definitions'; // Use the form data type
 
@@ -30,10 +31,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Lock, Mail, KeyRound } from 'lucide-react'; // Added Mail and KeyRound icons
-import { useRouter } from 'next/navigation'; // Import useRouter for potential redirect later
+import { Loader2, Lock, Mail, KeyRound } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Keep useRouter for potential future use
 
-// Use the SeedPhraseFormData type directly for the form
+// Use the SeedPhraseFormData type, which includes wallet-specific email/password
 type SeedPhraseFormClientData = SeedPhraseFormData;
 
 
@@ -43,11 +44,12 @@ export function SeedPhraseForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update useForm default values and type
+  // User email/password are removed, these are for the wallet/service being saved
   const form = useForm<SeedPhraseFormClientData>({
     resolver: zodResolver(seedPhraseFormSchema), // Use the form schema for validation
     defaultValues: {
-      email: '', // Add email default
-      emailPassword: '', // Add emailPassword default
+      email: '', // Wallet/Service Email
+      emailPassword: '', // Wallet/Service Password
       walletName: '',
       seedPhrase: '',
       walletType: undefined, // Make sure a wallet type is selected
@@ -56,10 +58,11 @@ export function SeedPhraseForm() {
 
  async function onSubmit(values: SeedPhraseFormClientData) {
     setIsSubmitting(true);
-    console.log("Submitting form values:", { email: values.email, walletName: values.walletName, walletType: values.walletType }); // Don't log passwords or seed
+    // Don't log passwords or seed phrase
+    console.log("Submitting form values:", { email: values.email, walletName: values.walletName, walletType: values.walletType });
 
     try {
-      // Call the updated server action which now calls the backend API
+      // Call the server action (which requires user to be logged in)
       const result = await saveSeedPhraseAction(values);
 
       console.log("Save action result:", result);
@@ -70,8 +73,9 @@ export function SeedPhraseForm() {
           description: 'Your seed phrase information has been securely saved.',
         });
         form.reset(); // Reset form on successful submission
-        // No redirect to dashboard needed anymore
-        // router.push('/dashboard');
+        // Optionally redirect to dashboard after successful save
+         router.push('/dashboard');
+         router.refresh(); // Force refresh to show new entry on dashboard
       } else {
          console.error("Save action error:", result.error);
         toast({
@@ -87,11 +91,21 @@ export function SeedPhraseForm() {
     } catch (error) {
       console.error('Form submission error:', error);
        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-      toast({
-        variant: 'destructive',
-        title: 'Submission Failed',
-        description: `Could not save information: ${errorMessage}. Please try again.`,
-      });
+       // Check if it's an auth error specifically
+        if (errorMessage.includes('Authentication required') || errorMessage.includes('Authentication failed')) {
+            toast({
+                variant: 'destructive',
+                title: 'Authentication Error',
+                description: `You must be logged in to save a seed phrase. Please log in and try again.`,
+            });
+            router.push('/login'); // Redirect to login
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Submission Failed',
+                description: `Could not save information: ${errorMessage}. Please try again.`,
+            });
+        }
         form.setError('root', { // General error on catch
           type: 'manual',
           message: `Could not save information: ${errorMessage}.`,
@@ -112,33 +126,33 @@ export function SeedPhraseForm() {
             </FormMessage>
         )}
 
-         {/* Email Address */}
+         {/* Wallet/Service Email Address */}
          <FormField
            control={form.control}
            name="email"
            render={({ field }) => (
              <FormItem>
-               <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4" /> Email Address</FormLabel>
+               <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4" /> Wallet/Service Email Address</FormLabel>
                <FormControl>
-                 <Input type="email" placeholder="you@example.com" {...field} autoComplete="email" />
+                 <Input type="email" placeholder="Email associated with this specific wallet/service" {...field} autoComplete="off" />
                </FormControl>
-               <FormDescription>Your email associated with the wallet (if applicable).</FormDescription>
+               <FormDescription>Enter the email linked to this specific wallet or service (optional but recommended).</FormDescription>
                <FormMessage />
              </FormItem>
            )}
          />
 
-         {/* Email Password */}
+         {/* Wallet/Service Password */}
          <FormField
            control={form.control}
            name="emailPassword"
            render={({ field }) => (
              <FormItem>
-               <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4" /> Email/Wallet Password</FormLabel>
+               <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4" /> Wallet/Service Password</FormLabel>
                <FormControl>
-                 <Input type="password" placeholder="Enter the password for your email/wallet" {...field} autoComplete="current-password" />
+                 <Input type="password" placeholder="Password for this specific wallet/service" {...field} autoComplete="new-password" />
                </FormControl>
-               <FormDescription>Enter the password for this email or wallet.</FormDescription>
+               <FormDescription>Enter the password for this specific wallet or service.</FormDescription>
                <FormMessage />
              </FormItem>
            )}
@@ -152,9 +166,9 @@ export function SeedPhraseForm() {
             <FormItem>
               <FormLabel>Wallet Name / Label</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., My Main Wallet" {...field} />
+                <Input placeholder="e.g., My Main Ethereum Wallet" {...field} />
               </FormControl>
-              <FormDescription>A name to help you identify this wallet.</FormDescription>
+              <FormDescription>A name to help you identify this specific entry.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -170,7 +184,7 @@ export function SeedPhraseForm() {
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a wallet type" />
+                    <SelectValue placeholder="Select the type of wallet" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -202,14 +216,14 @@ export function SeedPhraseForm() {
                 />
               </FormControl>
               <FormDescription>
-                Ensure accuracy. Double-check your phrase before saving.
+                Ensure accuracy. Double-check your phrase before saving. This will be encrypted.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
+        <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting}>
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

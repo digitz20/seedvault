@@ -5,17 +5,20 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 import { cn } from '@/lib/utils';
 import Header from '@/components/layout/header'; // Import the Header component
+import { getUserAuth } from '@/lib/auth/utils'; // Import auth utility
 
 export const metadata: Metadata = {
   title: 'SeedVault - Secure Your Seed Phrases',
   description: 'Securely store and manage your cryptocurrency seed phrases.',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { session } = await getUserAuth(); // Check auth status on the server
+
   return (
     <html lang="en" suppressHydrationWarning className="min-h-screen">
       <body
@@ -24,8 +27,8 @@ export default function RootLayout({
           GeistSans.variable
         )}
       >
-        <Header /> {/* Always show the Header */}
-        <main className="flex-1 flex flex-col items-center"> {/* main content takes remaining space */}
+        <Header session={session} /> {/* Pass session status to Header */}
+        <main className="flex-1 flex flex-col items-center pt-4 pb-8"> {/* main content takes remaining space, added padding */}
           {children}
         </main>
         {/* Footer sticks to the bottom */}
