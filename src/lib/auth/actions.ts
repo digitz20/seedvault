@@ -53,13 +53,14 @@ async function setSessionCookie(token: string): Promise<Session | null> {
         const { payload } = await jwtVerify(token, getSecretKey(), {
             algorithms: ['HS256'], // Specify expected algorithm
         });
-        console.log('[setSessionCookie] JWT verified successfully. Payload:', payload);
+        // Log the raw payload structure for debugging validation issues
+        console.log('[setSessionCookie] JWT verified successfully. Raw Payload:', JSON.stringify(payload, null, 2));
 
         // Validate the payload structure
         // Ensure payload has userId (mongo ObjectId as string) and email
          const expectedPayloadShape = z.object({
-           userId: z.string().min(1), // MongoDB ObjectId is typically a 24-char hex string
-           email: z.string().email(),
+           userId: z.string().min(1, { message: "userId is missing or empty" }), // MongoDB ObjectId is typically a 24-char hex string
+           email: z.string().email({ message: "email is missing or invalid" }),
            iat: z.number().optional(), // Issued at (standard JWT claim)
            exp: z.number().optional(), // Expiration time (standard JWT claim)
          });
@@ -68,8 +69,11 @@ async function setSessionCookie(token: string): Promise<Session | null> {
         const validatedPayload = expectedPayloadShape.safeParse(payload);
 
         if (!validatedPayload.success) {
-            console.error('[setSessionCookie] JWT payload validation FAILED:', validatedPayload.error.flatten());
-            throw new Error('Invalid user data structure in token payload.');
+            // Log detailed Zod error
+            console.error('[setSessionCookie] JWT payload validation FAILED:', JSON.stringify(validatedPayload.error.flatten(), null, 2));
+            // Compare raw payload with expected shape to pinpoint mismatch
+            console.error('[setSessionCookie] Raw payload for comparison:', JSON.stringify(payload, null, 2));
+            throw new Error(`Invalid user data structure in token payload. Reason: ${validatedPayload.error.flatten().fieldErrors?.userId || validatedPayload.error.flatten().fieldErrors?.email || 'Unknown validation error'}`);
         }
          console.log('[setSessionCookie] Payload validation SUCCEEDED.');
 
@@ -107,10 +111,12 @@ async function setSessionCookie(token: string): Promise<Session | null> {
              console.warn('[setSessionCookie] JWT verification failed: Token expired.');
          } else if (error.code === 'ERR_JWS_INVALID' || error.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
              console.error('[setSessionCookie] JWT verification failed: Invalid signature or format.');
-         } else if (error.message === 'Invalid user data structure in token payload.') {
+         } else if (error.message?.includes('Invalid user data structure in token payload')) {
+              // Already logged detailed validation error above
               console.error('[setSessionCookie] Payload validation failed after successful JWT verification.');
          } else {
-            console.error('[setSessionCookie] Error during JWT verification or cookie setting:', error);
+            // Log any other errors encountered during verification or setting cookie
+            console.error('[setSessionCookie] Error during JWT verification or cookie setting:', error.message || error);
          }
         // Attempt to clear potentially invalid cookie
         console.log('[setSessionCookie] Attempting to delete potentially invalid cookie.');
@@ -187,10 +193,6 @@ export async function handleSignup(
         if (response.status === 409 && data.message?.toLowerCase().includes('email already exists')) {
             return { success: false, error: 'Email already exists. Please log in or use a different email.' };
         }
-         // Handle fetch failed specifically - This was missing the check for 'error' variable
-         if (error instanceof TypeError && error.message.includes('fetch failed')) {
-              return { success: false, error: `Failed to connect to the server: ${error.message}` };
-         }
         return { success: false, error: data.message || `Signup failed (status: ${response.status})` };
     }
      console.log(`[Signup Action] Signup successful for ${email}.`);
@@ -310,7 +312,8 @@ export async function handleLoginAndSave(
              // If setting cookie fails, log and return the specific error
             console.error(`[LoginAndSave Action] setSessionCookie failed for ${email}.`);
             // Provide a more user-friendly error message
-            return { success: false, error: 'Login succeeded but failed to establish session. Please try again.' };
+            // The detailed error is logged inside setSessionCookie
+            return { success: false, error: 'Login succeeded but failed to establish session. Please check server logs.' };
         }
         userId = session.user.userId; // Store userId from the session
         console.log(`[LoginAndSave Action] Session cookie set successfully. User ID: ${userId}`);
