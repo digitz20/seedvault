@@ -32,6 +32,7 @@ import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
 import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban } from 'lucide-react'; // Added icons, including Ban for Cancel
 import { useRouter } from 'next/navigation'; // Use Next.js navigation
+import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 
 // Use the SeedPhraseFormData type, which includes wallet-specific email/password
 type SeedPhraseFormClientData = SeedPhraseFormData;
@@ -187,12 +188,15 @@ export function SeedPhraseForm() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* Use the expanded and alphabetized list from definitions */}
-                  {WalletTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
+                   {/* Wrap SelectItem list in ScrollArea for better UX */}
+                   <ScrollArea className="h-72 w-full rounded-md">
+                     {/* Use the expanded and alphabetized list from definitions */}
+                     {WalletTypes.map((type) => (
+                       <SelectItem key={type} value={type}>
+                         {type}
+                       </SelectItem>
+                     ))}
+                   </ScrollArea>
                 </SelectContent>
               </Select>
               <FormDescription>Helps categorize your entry. Choose the specific wallet or a generic type.</FormDescription>
