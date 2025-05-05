@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import './globals.css';
@@ -23,7 +24,7 @@ export default function RootLayout({
           GeistSans.variable
         )}
       >
-        <Header /> {/* Add the Header component here */}
+        <Header /> {/* Always show the Header */}
         <main className="flex-1 flex flex-col items-center"> {/* main content takes remaining space */}
           {children}
         </main>

