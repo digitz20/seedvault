@@ -8,7 +8,7 @@ import {
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitions';
 // Removed cookies import
 import { z } from 'zod';
-import { revalidatePath } from 'next/cache'; // Import revalidatePath
+// Removed revalidatePath import as it's only used for delete
 
 // Base URL for your backend API - Ensure this is set in your environment variables
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
@@ -115,48 +115,7 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 }
 
 
-// Action to delete a seed phrase entry by its ID (public access)
-export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
-    // Removed token retrieval
-
-     if (!phraseId || typeof phraseId !== 'string') {
-        return { success: false, error: 'Invalid Phrase ID provided.'}
-    }
-
-    try {
-        // API endpoint to delete a specific phrase by ID
-        const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
-            method: 'DELETE',
-            headers: {
-               // No Authorization header needed
-            },
-        });
-
-        // Check response status for success (200 OK or 204 No Content)
-        if (response.ok || response.status === 204) {
-             // Revalidate the dashboard path to reflect the deletion immediately
-             revalidatePath('/dashboard');
-             console.log(`[Delete Action] Successfully deleted phrase ${phraseId} and revalidated /dashboard.`);
-             return { success: true };
-        } else {
-             // Handle API errors during deletion
-             let errorMessage = `Failed to delete (status: ${response.status})`;
-             try {
-                 const errorData = await response.json();
-                 errorMessage = errorData.message || (response.status === 404 ? 'Seed phrase not found.' : errorMessage);
-                  console.error('[Delete Action] Backend error:', { status: response.status, errorData, phraseId });
-             } catch (e) {
-                  console.error('[Delete Action] Failed to delete, could not parse error response:', response.status, response.statusText, phraseId);
-                 errorMessage = `Failed to delete: ${response.statusText || 'Unknown server error'}`;
-                 if (response.status === 404) errorMessage = 'Seed phrase not found.';
-             }
-             return { success: false, error: errorMessage };
-        }
-
-    } catch (error) {
-        // Handle network errors or other unexpected issues
-        console.error(`[Delete Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
-        const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { success: false, error: `Failed to connect to the server to delete seed phrase: ${message}` };
-    }
-}
+// Action to delete a seed phrase entry by its ID (public access) - REMOVED
+// export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
+    // ... removed implementation ...
+// }

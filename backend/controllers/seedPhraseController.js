@@ -117,6 +117,10 @@ const revealSeedPhrase = async (req, res) => {
 };
 
 // --- Delete Seed Phrase by ID (No User Context) ---
+// This function is intentionally commented out to prevent actual deletion.
+// If you need "soft delete" functionality, you would add a field like 'isDeleted: Boolean'
+// to the model and update this function to set that field to true instead of deleting.
+/*
 const deleteSeedPhrase = async (req, res) => {
     const phraseId = req.params.id;
     console.log(`[Delete Controller Attempt] Public delete for Phrase ID: ${phraseId}`);
@@ -142,11 +146,11 @@ const deleteSeedPhrase = async (req, res) => {
         res.status(500).json({ message: 'Error deleting seed phrase information.' });
     }
 };
-
+*/
 
 module.exports = {
     saveSeedPhrase,
     getSeedPhraseMetadata,
     revealSeedPhrase,
-    deleteSeedPhrase,
+    // deleteSeedPhrase, // Keep commented out
 };

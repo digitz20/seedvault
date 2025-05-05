@@ -11,17 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+// Removed AlertDialog imports as delete confirmation is removed
 import {
   Dialog,
   DialogContent,
@@ -31,15 +21,18 @@ import {
   DialogClose,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Eye, Trash2, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff } from "lucide-react";
+// Removed Trash2 icon
+import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff } from "lucide-react";
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
-import { deleteSeedPhraseAction, revealSeedPhraseAction } from '../_actions/dashboard-actions';
+// Removed deleteSeedPhraseAction import
+import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input'; // For displaying revealed data
 import { Label } from '@/components/ui/label'; // For labeling revealed data
 import { Badge } from '@/components/ui/badge'; // To show wallet type nicely
 import { Skeleton } from '@/components/ui/skeleton'; // For loading state in modal
+import { Textarea } from '@/components/ui/textarea'; // Import Textarea
 
 
 interface SeedPhraseTableProps {
@@ -49,7 +42,8 @@ interface SeedPhraseTableProps {
 export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
-  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({}); // Track loading state per row (reveal/delete)
+  // Adjusted isLoading state to only track reveal
+  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
   const [isRevealing, setIsRevealing] = useState(false); // Track loading state specifically for the modal reveal action
   const [revealedData, setRevealedData] = useState<RevealedSeedPhraseData | null>(null);
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
@@ -119,35 +113,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     }
   };
 
-  const handleDelete = async (phraseId: string) => {
-    setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
-    try {
-      const result = await deleteSeedPhraseAction(phraseId);
-      if (result.success) {
-        // Remove the phrase from the local state to update the UI instantly
-        setPhrases(currentPhrases => currentPhrases.filter(p => p._id !== phraseId));
-        toast({
-          title: 'Success',
-          description: 'Seed phrase entry deleted successfully.',
-        });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Delete Failed',
-          description: result.error || 'Could not delete the seed phrase entry.',
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'An unexpected error occurred while deleting.',
-      });
-       console.error("Delete error:", error);
-    } finally {
-      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: false }));
-    }
-  };
+  // Removed handleDelete function
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
      const textToCopy = text || ""; // Handle null/undefined
@@ -211,46 +177,8 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                   )}
                  </Button>
 
-                {/* Delete Button with Confirmation */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                     <Button
-                         variant="destructive"
-                         size="icon" // Changed to icon size
-                         disabled={isLoading[`delete-${phrase._id}`]}
-                         aria-label={`Delete entry for ${phrase.walletName}`}
-                         title={`Delete entry for ${phrase.walletName}`}
-                     >
-                       {isLoading[`delete-${phrase._id}`] ? (
-                         <Loader2 className="h-4 w-4 animate-spin" />
-                       ) : (
-                         <Trash2 className="h-4 w-4" />
-                       )}
-                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the
-                        seed phrase entry for <span className="font-semibold">{phrase.walletName}</span>.
-                        <span className="block mt-2 text-destructive font-medium">Ensure you have backed up this phrase elsewhere if needed.</span>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel disabled={isLoading[`delete-${phrase._id}`]}>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => handleDelete(phrase._id)}
-                        className="bg-destructive hover:bg-destructive/90"
-                        disabled={isLoading[`delete-${phrase._id}`]}
-                      >
-                         {isLoading[`delete-${phrase._id}`] ? (
-                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
-                          ) : 'Yes, delete it'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                {/* Delete Button and AlertDialog Removed */}
+
               </TableCell>
             </TableRow>
           ))}

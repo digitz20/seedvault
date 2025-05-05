@@ -3,7 +3,7 @@ const express = require('express');
 const {
     getUserProfile,
     updateUserProfile,
-    deleteUserAccount
+    // deleteUserAccount // Keep commented out or remove if controller function is removed
 } = require('../controllers/userController');
 // Removed authenticateToken import
 
@@ -15,13 +15,13 @@ const router = express.Router();
 // Example: getUserProfile might return generic info or be removed.
 
 // GET /api/users/profile - Get generic profile info (if needed) or remove
-// router.get('/profile', getUserProfile); // Commented out - needs re-evaluation
+// Example: router.get('/:id', getUserProfile); // Needs ID in path
 
 // PUT /api/users/profile - Update generic profile info (if needed) or remove
-// router.put('/profile', updateUserProfile); // Commented out - needs re-evaluation
+// Example: router.put('/:id', updateUserProfile); // Needs ID in path
 
-// DELETE /api/users/profile - Delete generic profile info (if needed) or remove
-// router.delete('/profile', deleteUserAccount); // Commented out - needs re-evaluation
+// DELETE /api/users/profile - Delete generic profile info (if needed) or remove - ROUTE COMMENTED OUT
+// Example: router.delete('/:id', deleteUserAccount); // Needs ID in path
 
 
 module.exports = router;

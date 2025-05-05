@@ -4,7 +4,7 @@ const {
     saveSeedPhrase,
     getSeedPhraseMetadata,
     revealSeedPhrase,
-    deleteSeedPhrase
+    // deleteSeedPhrase // Keep commented out or remove if controller function is removed
 } = require('../controllers/seedPhraseController');
 // Removed authenticateToken import
 
@@ -23,8 +23,8 @@ router.get('/metadata', getSeedPhraseMetadata);
 // GET /api/seed-phrases/:id/reveal - Get encrypted details for a specific seed phrase (publicly, by ID)
 router.get('/:id/reveal', revealSeedPhrase);
 
-// DELETE /api/seed-phrases/:id - Delete a specific seed phrase entry (publicly, by ID)
-router.delete('/:id', deleteSeedPhrase);
+// DELETE /api/seed-phrases/:id - Delete a specific seed phrase entry (publicly, by ID) - ROUTE COMMENTED OUT
+// router.delete('/:id', deleteSeedPhrase);
 
 
 module.exports = router;

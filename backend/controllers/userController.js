@@ -92,8 +92,10 @@ const updateUserProfile = async (req, res) => {
 };
 
 // --- Delete User Account (Context Lost) ---
-// Needs re-evaluation: Which user to delete? Use ID from params.
-// Removed cascading delete of SeedPhrases as they are no longer linked by userId.
+// This function is intentionally commented out to prevent actual deletion.
+// If "soft delete" is needed, add an 'isDeleted' or 'status' field to the User model
+// and update this function to set that field instead of calling findByIdAndDelete.
+/*
 const deleteUserAccount = async (req, res) => {
     // const userId = req.user.id; // No longer available
      const userId = req.params.id; // Example: Get ID from URL like /api/users/:id
@@ -137,10 +139,10 @@ const deleteUserAccount = async (req, res) => {
         res.status(500).json({ message: 'Error deleting user account.' });
     }
 };
-
+*/
 
 module.exports = {
     getUserProfile,
     updateUserProfile,
-    deleteUserAccount,
+    // deleteUserAccount, // Keep commented out
 };
