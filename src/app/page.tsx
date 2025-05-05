@@ -2,19 +2,15 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { ShieldCheck, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
-import { cookies } from 'next/headers'; // Import cookies to check auth token
+import { ShieldCheck, ArrowRight } from 'lucide-react';
+// Removed: import { cookies } from 'next/headers'; // No longer needed for this page's logic
 
-// --- Authentication Check (Server-side using HttpOnly Cookie) ---
-async function checkAuthCookie(): Promise<boolean> {
-  const token = cookies().get('auth_token')?.value;
-  // Basic check for token presence
-  return !!token;
-}
+// --- Authentication Check Removed ---
+// async function checkAuthCookie(): Promise<boolean> { ... } - Removed as isLoggedIn is no longer used to control buttons
 // -----------------------------------------
 
 export default async function Home() {
-  const isLoggedIn = await checkAuthCookie(); // Check auth token state
+  // Removed: const isLoggedIn = await checkAuthCookie(); // No longer needed
 
   return (
     <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16 md:py-24">
@@ -32,12 +28,10 @@ export default async function Home() {
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle className="text-center">
-            {isLoggedIn ? 'Access Your Vault' : 'Get Started'}
+            Secure Your Phrase
           </CardTitle>
           <CardDescription className="text-center">
-            {isLoggedIn
-              ? 'Manage your saved seed phrases securely.'
-              : 'Create an account or log in to begin.'}
+            Click continue to securely store your seed phrase.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
@@ -46,36 +40,18 @@ export default async function Home() {
              <p className="text-sm font-medium text-muted-foreground">End-to-End Encryption <br /> Your Data is Safe</p>
            </div>
         </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-center gap-4">
-          {isLoggedIn ? (
-             // Use primary color for the main logged-in action
-             <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
-               <Link href="/dashboard">
-                 <LayoutDashboard className="mr-2 h-5 w-5" /> Go to Dashboard
-               </Link>
-             </Button>
-            // Optionally add Logout button here if desired on homepage when logged in
-            // <form action="/api/logout" method="POST"> {/* Or use logoutAction if preferred */}
-            //   <Button type="submit" size="lg" variant="outline" className="w-full sm:w-auto">
-            //       <LogOut className="mr-2 h-5 w-5" /> Log Out
-            //   </Button>
-            // </form>
-          ) : (
-            <>
-              {/* Use accent color for the primary sign-up action */}
-              <Button size="lg" asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto">
-                <Link href="/signup">
-                  <UserPlus className="mr-2 h-5 w-5" /> Sign Up
-                </Link>
-              </Button>
-              {/* Use outline variant for the secondary log-in action */}
-              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/login">
-                  <LogIn className="mr-2 h-5 w-5" /> Log In
-                </Link>
-              </Button>
-            </>
-          )}
+        <CardFooter className="flex flex-col items-center justify-center gap-4">
+           {/* Single "Continue" button linking to /save-seed */}
+           <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
+             <Link href="/save-seed">
+                Continue <ArrowRight className="ml-2 h-5 w-5" />
+             </Link>
+           </Button>
+
+           {/* Warning Text */}
+           <p className="mt-2 text-center text-xs font-semibold text-destructive">
+             Warning: Do not share your seed phrase with anyone, it may lead to loss of data.
+           </p>
         </CardFooter>
       </Card>
     </div>
