@@ -11,9 +11,13 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache'; // Import revalidatePath for delete
 import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth for basic check
 
-// Base URL for your backend API - Ensure this is set in your environment variables
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+// Use the standard backend URL variable
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
 const COOKIE_NAME = 'session'; // Consistent cookie name
+
+if (!BACKEND_API_URL) {
+    console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
+}
 
 // Helper function to get the auth token
 function getAuthToken(): string | undefined {
@@ -40,7 +44,7 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
     */
 
     try {
-        console.log('[Get Metadata Action] Fetching metadata from backend.');
+        console.log(`[Get Metadata Action] Fetching metadata from backend: ${BACKEND_API_URL}/api/seed-phrases/metadata`);
         // Updated API endpoint for fetching user-specific metadata
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/metadata`, {
             method: 'GET',
@@ -82,8 +86,13 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
 
     } catch (error) {
         console.error('[Get Metadata Action] Network or unexpected error:', error);
-        const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { error: `Failed to connect to the server: ${message}` };
+         let detailedError = 'An unknown network error occurred.';
+         if (error instanceof TypeError && error.message.includes('fetch failed')) {
+             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+         } else if (error instanceof Error) {
+             detailedError = error.message;
+         }
+        return { error: `Failed to fetch metadata: ${detailedError}` };
     }
 }
 
@@ -100,7 +109,7 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
     }
 
     try {
-         console.log(`[Reveal Action] Sending reveal request for Phrase ID: ${phraseId}`);
+         console.log(`[Reveal Action] Sending reveal request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`);
         // API endpoint to reveal a specific phrase by ID (backend enforces ownership)
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`, {
             method: 'GET',
@@ -141,8 +150,13 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 
     } catch (error) {
         console.error(`[Reveal Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
-        const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { error: `Failed to connect to the server: ${message}` };
+         let detailedError = 'An unknown network error occurred.';
+         if (error instanceof TypeError && error.message.includes('fetch failed')) {
+             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+         } else if (error instanceof Error) {
+             detailedError = error.message;
+         }
+        return { error: `Failed to reveal data: ${detailedError}` };
     }
 }
 
@@ -160,7 +174,7 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
     }
 
     try {
-         console.warn(`[Delete Action] Sending HARD DELETE request for Phrase ID: ${phraseId}`);
+         console.warn(`[Delete Action] Sending HARD DELETE request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId}`);
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
             method: 'DELETE',
             headers: {
@@ -191,7 +205,12 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
 
     } catch (error) {
         console.error(`[Delete Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
-         const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { success: false, error: `Failed to connect to the server: ${message}` };
+         let detailedError = 'An unknown network error occurred.';
+         if (error instanceof TypeError && error.message.includes('fetch failed')) {
+             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+         } else if (error instanceof Error) {
+             detailedError = error.message;
+         }
+        return { success: false, error: `Failed to delete seed phrase: ${detailedError}` };
     }
 }

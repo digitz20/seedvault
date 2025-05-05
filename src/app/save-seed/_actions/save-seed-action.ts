@@ -7,9 +7,13 @@ import { cookies } from 'next/headers'; // Import cookies
 import { revalidatePath } from 'next/cache'; // Import revalidatePath
 import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth
 
-// Base URL for your backend API - Ensure this is set in your environment variables
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+// Use the standard backend URL variable
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
 const COOKIE_NAME = 'session'; // Consistent cookie name
+
+if (!BACKEND_API_URL) {
+    console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
+}
 
 export async function saveSeedPhraseAction(
   formData: SeedPhraseFormData // Use the form data type
@@ -50,7 +54,7 @@ export async function saveSeedPhraseAction(
   const dataToSave = validatedFields.data;
 
   // Log minimal info for debugging (avoid logging sensitive data)
-   console.log(`[Save Seed Action] Sending save request to backend for user: ${userId}, wallet: ${dataToSave.walletName}`);
+   console.log(`[Save Seed Action] Sending save request to backend for user: ${userId}, wallet: ${dataToSave.walletName} to ${BACKEND_API_URL}/api/seed-phrases`);
 
   // 3. Call the backend API to save the information
   try {
@@ -93,10 +97,15 @@ export async function saveSeedPhraseAction(
   } catch (error) {
     // Handle network errors or other unexpected issues during fetch
     console.error(`[Save Seed Action] Network or unexpected error calling backend for user ${userId}:`, error);
-     const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
+     let detailedError = 'An unknown network error occurred.';
+     if (error instanceof TypeError && error.message.includes('fetch failed')) {
+         detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+     } else if (error instanceof Error) {
+         detailedError = error.message;
+     }
     return {
       success: false,
-      error: `Failed to connect to the server: ${message}`,
+      error: `Failed to save seed phrase: ${detailedError}`,
     };
   }
 }

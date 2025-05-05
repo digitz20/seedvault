@@ -7,13 +7,18 @@ import { z } from 'zod';
 import { LoginSchema, SignupSchema, userClientDataSchema } from '@/lib/definitions'; // Import schemas
 import type { LoginFormData, SignupFormData, UserClientData } from '@/lib/definitions';
 
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+// Use the standard backend URL variable, assuming it's set in the environment for the Next.js server process
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
 const JWT_SECRET = process.env.JWT_SECRET;
 const COOKIE_NAME = 'session'; // Cookie name consistent with utils
 
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not defined.');
 }
+if (!BACKEND_API_URL) {
+    console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
+}
+
 
 // Helper function to set the session cookie
 async function setSessionCookie(token: string) {
@@ -66,7 +71,7 @@ export async function handleLogin(
   const { email, password } = validatedFields.data;
 
   try {
-    console.log(`[Login Action] Sending login request for email: ${email}`);
+    console.log(`[Login Action] Sending login request for email: ${email} to ${BACKEND_API_URL}/api/auth/login`);
     const response = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -91,8 +96,14 @@ export async function handleLogin(
     }
   } catch (error) {
     console.error('[Login Action] Network or unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, error: `Failed to connect to the server: ${message}` };
+    // Check if it's a fetch error (e.g., connection refused)
+    let detailedError = 'An unknown error occurred.';
+    if (error instanceof TypeError && error.message.includes('fetch failed')) {
+        detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+    } else if (error instanceof Error) {
+        detailedError = error.message;
+    }
+    return { success: false, error: `Login failed: ${detailedError}` };
   }
 }
 
@@ -111,7 +122,7 @@ export async function handleSignup(
   const { email, password } = validatedFields.data;
 
   try {
-     console.log(`[Signup Action] Sending signup request for email: ${email}`);
+     console.log(`[Signup Action] Sending signup request for email: ${email} to ${BACKEND_API_URL}/api/auth/signup`);
     const response = await fetch(`${BACKEND_API_URL}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -132,8 +143,14 @@ export async function handleSignup(
 
   } catch (error) {
     console.error('[Signup Action] Network or unexpected error:', error);
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, error: `Failed to connect to the server: ${message}` };
+    // Check if it's a fetch error (e.g., connection refused)
+     let detailedError = 'An unknown error occurred.';
+     if (error instanceof TypeError && error.message.includes('fetch failed')) {
+         detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+     } else if (error instanceof Error) {
+         detailedError = error.message;
+     }
+    return { success: false, error: `Signup failed: ${detailedError}` };
   }
 }
 
@@ -157,7 +174,7 @@ export async function deleteAccountAction(): Promise<{ success: boolean; error?:
     }
 
     try {
-        console.warn('[Delete Account Action] Sending request to delete account.');
+        console.warn(`[Delete Account Action] Sending request to delete account to ${BACKEND_API_URL}/api/users/profile`);
         const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, {
             method: 'DELETE',
             headers: {
@@ -179,7 +196,12 @@ export async function deleteAccountAction(): Promise<{ success: boolean; error?:
 
     } catch (error) {
         console.error('[Delete Account Action] Network or unexpected error:', error);
-        const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-        return { success: false, error: `Failed to connect to the server: ${message}` };
+        let detailedError = 'An unknown error occurred.';
+         if (error instanceof TypeError && error.message.includes('fetch failed')) {
+             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
+         } else if (error instanceof Error) {
+             detailedError = error.message;
+         }
+        return { success: false, error: `Failed to delete account: ${detailedError}` };
     }
 }
