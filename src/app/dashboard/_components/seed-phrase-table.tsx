@@ -11,7 +11,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-// Removed AlertDialog imports as delete confirmation is removed
+// Import AlertDialog for delete confirmation (optional, but good UX)
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -21,8 +32,8 @@ import {
   DialogClose,
   DialogFooter,
 } from "@/components/ui/dialog";
-// Removed Trash2 icon
-import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff } from "lucide-react";
+// Added Trash2 icon
+import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2 } from "lucide-react";
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
 // Removed deleteSeedPhraseAction import
@@ -49,6 +60,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({}); // Track copy status per field
   const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
+  const [phraseToDelete, setPhraseToDelete] = useState<SeedPhraseMetadata | null>(null); // State for delete confirmation
 
   // Avoid hydration mismatch for Date formatting
   const [isClient, setIsClient] = useState(false);
@@ -113,7 +125,15 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     }
   };
 
-  // Removed handleDelete function
+  // Client-side only "delete" - removes from view, doesn't call backend
+  const handleLocalDeleteConfirm = (phraseId: string) => {
+    setPhrases(prevPhrases => prevPhrases.filter(p => p._id !== phraseId));
+    toast({
+      title: 'Removed from View',
+      description: 'The seed phrase entry has been removed from this view. It has not been deleted from the database.',
+    });
+    setPhraseToDelete(null); // Close confirmation dialog
+  };
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
      const textToCopy = text || ""; // Handle null/undefined
@@ -177,7 +197,39 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                   )}
                  </Button>
 
-                {/* Delete Button and AlertDialog Removed */}
+                {/* "Delete" Button (Client-side removal only) */}
+                 <AlertDialog>
+                     <AlertDialogTrigger asChild>
+                         <Button
+                             variant="destructive"
+                             size="icon"
+                             aria-label={`Remove ${phrase.walletName} from view`}
+                             title={`Remove ${phrase.walletName} from view`}
+                             onClick={() => setPhraseToDelete(phrase)} // Set phrase for confirmation
+                         >
+                             <Trash2 className="h-4 w-4" />
+                         </Button>
+                     </AlertDialogTrigger>
+                     {/* Confirmation Dialog */}
+                     <AlertDialogContent>
+                         <AlertDialogHeader>
+                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                             <AlertDialogDescription>
+                                 This will remove the entry for "<span className="font-semibold">{phraseToDelete?.walletName}</span>" from your current view.
+                                 It will <span className="font-bold text-destructive">not</span> be permanently deleted from the database.
+                             </AlertDialogDescription>
+                         </AlertDialogHeader>
+                         <AlertDialogFooter>
+                             <AlertDialogCancel onClick={() => setPhraseToDelete(null)}>Cancel</AlertDialogCancel>
+                             <AlertDialogAction
+                                 onClick={() => phraseToDelete && handleLocalDeleteConfirm(phraseToDelete._id)}
+                                 className="bg-destructive hover:bg-destructive/90"
+                              >
+                                 Remove from View
+                             </AlertDialogAction>
+                         </AlertDialogFooter>
+                     </AlertDialogContent>
+                 </AlertDialog>
 
               </TableCell>
             </TableRow>
