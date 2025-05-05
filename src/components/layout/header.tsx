@@ -1,13 +1,20 @@
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react'; // Using ShieldCheck for the logo
+import { cn } from '@/lib/utils';
 
 export default function Header() {
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className={cn(
+      "sticky top-0 z-50 w-full",
+      "bg-accent text-accent-foreground" // Use accent color for background and foreground text
+      // Removed border-b for a cleaner look with solid color
+    )}>
       <div className="container flex h-14 items-center">
         <Link href="/" className="flex items-center space-x-2">
-          <ShieldCheck className="h-6 w-6 text-primary" />
-          <span className="font-bold inline-block">
+          {/* Icon color updated to accent-foreground */}
+          <ShieldCheck className="h-6 w-6 text-accent-foreground" />
+          {/* Text color updated to accent-foreground */}
+          <span className="font-bold inline-block text-accent-foreground">
             SeedVault
           </span>
         </Link>
