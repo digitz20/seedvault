@@ -1,120 +1,197 @@
 'use server';
 
-import type { Omit } from 'utility-types';
 import { seedPhraseSchema } from '@/lib/definitions';
 import type { SeedPhraseFormData, SeedPhraseData } from '@/lib/definitions';
 import { revalidatePath } from 'next/cache';
-import { cookies } from 'next/headers'; // Import cookies
+import { cookies } from 'next/headers';
+import { getSeedPhrasesCollection, getUsersCollection } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
+// IMPORTANT: Add a real encryption library (e.g., crypto-js, Node's crypto)
+// For this example, we'll use a placeholder "encryption".
+// import crypto from 'crypto'; // Example using Node's built-in crypto
 
-// Define the type for data coming from the client form (without email/userId)
-type SeedPhraseFormClientData = Omit<SeedPhraseFormData, 'email' | 'userId'>;
+// --- Placeholder Encryption ---
+// Replace with robust, authenticated encryption (e.g., AES-GCM)
+// Store the key securely (e.g., environment variable, secrets manager)
+const ENCRYPTION_KEY = process.env.SEED_ENCRYPTION_KEY || 'default-very-insecure-key-32-bytes'; // MUST be 32 bytes for AES-256
+const IV_LENGTH = 16; // For AES, this is always 16
 
-// --- Mock Session Retrieval ---
-// In a real app, use your session library to get the authenticated user's ID
-async function getMockUserIdFromSession(): Promise<string | null> {
+if (process.env.NODE_ENV === 'production' && ENCRYPTION_KEY === 'default-very-insecure-key-32-bytes') {
+    console.warn('WARNING: Using default insecure encryption key in production!');
+}
+if (Buffer.from(ENCRYPTION_KEY, 'utf8').length !== 32) {
+    console.error('FATAL: SEED_ENCRYPTION_KEY must be 32 bytes long.');
+    // In a real app, you might throw an error here or prevent startup
+}
+
+function encrypt(text: string): string {
+    // --- !!! ---
+    // THIS IS A PLACEHOLDER - DO NOT USE IN PRODUCTION
+    // Use Node's crypto module or a library like crypto-js for real encryption
+    // --- !!! ---
+    // Example using simple Base64 encoding as a stand-in
+     try {
+        return Buffer.from(text).toString('base64');
+        // --- Real Encryption Example (Conceptual) ---
+        // const iv = crypto.randomBytes(IV_LENGTH);
+        // const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(ENCRYPTION_KEY, 'utf8'), iv);
+        // let encrypted = cipher.update(text, 'utf8', 'hex');
+        // encrypted += cipher.final('hex');
+        // const authTag = cipher.getAuthTag();
+        // // Combine IV, authTag, and encrypted data (e.g., IV:AuthTag:EncryptedData)
+        // return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
+        // --- End Real Encryption Example ---
+     } catch (e) {
+        console.error("Encryption failed:", e);
+        throw new Error("Could not encrypt seed phrase.");
+     }
+
+}
+// Add a corresponding decrypt function in the component that displays the seed phrase
+// --- End Placeholder Encryption ---
+
+
+// --- Session Retrieval ---
+async function getUserIdFromSession(): Promise<ObjectId | null> {
   const sessionId = cookies().get('session_id')?.value;
-  if (sessionId && sessionId.startsWith('mock-session-')) {
-    // Extract userId from the mock session ID (adjust based on your mock format)
-    const userId = sessionId.split('-')[2];
-    console.log('[Save Seed Action] Retrieved mock userId from session:', userId);
-    return userId;
+  if (!sessionId || !sessionId.startsWith('session-')) {
+      console.warn('[Save Seed Action] No valid session found.');
+      return null;
   }
-  console.warn('[Save Seed Action] No valid mock session found.');
-  return null;
+
+  // Extract userId string
+  const userIdString = sessionId.split('-')[1];
+   if (!userIdString) {
+      console.error('[Save Seed Action] Could not extract userId from session:', sessionId);
+      return null;
+  }
+
+  console.log('[Save Seed Action] Extracted userIdString:', userIdString);
+
+  // Convert to ObjectId
+  try {
+      const userId = new ObjectId(userIdString);
+      console.log('[Save Seed Action] Converted to ObjectId:', userId);
+
+       // Optional: Verify user exists in DB
+      // const usersCollection = await getUsersCollection();
+      // const userExists = await usersCollection.countDocuments({ _id: userId });
+      // if (userExists === 0) {
+      //   console.warn('[Save Seed Action] User ID from session not found in DB:', userId);
+      //   // Clear invalid cookie?
+      //   // cookies().delete('session_id');
+      //   return null;
+      // }
+
+      return userId;
+  } catch (e) {
+      console.error('[Save Seed Action] Invalid userId format in session:', userIdString, e);
+      // Clear invalid cookie?
+      // cookies().delete('session_id');
+      return null;
+  }
 }
 // ----------------------------
 
-// --- Mock Database for Seed Phrases ---
-// In a real app, replace with actual database interaction (e.g., MongoDB)
-const mockSeedPhraseDatabase: SeedPhraseData[] = [];
-let seedPhraseIdCounter = 1;
-// -------------------------------------
+
+// --- Database Save Logic ---
+async function databaseSave(data: Omit<SeedPhraseData, '_id' | 'createdAt'>): Promise<{ success: true; id: string } | { success: false; error: string }> {
+  console.log('[Save Seed Action - DB] Received data:', { ...data, seedPhrase: '***' }); // Don't log raw seed
+
+  // Encrypt the seed phrase before saving
+  let encryptedSeedPhrase: string;
+  try {
+      encryptedSeedPhrase = encrypt(data.seedPhrase);
+      console.log('[Save Seed Action - DB] Seed phrase encrypted.');
+  } catch (encError: any) {
+      console.error('[Save Seed Action - DB] Encryption failed:', encError);
+      return { success: false, error: 'Failed to secure seed phrase before saving.' };
+  }
 
 
-// Updated mock save function to accept full SeedPhraseData including userId
-async function mockDatabaseSave(data: SeedPhraseData): Promise<{ success: true; id: string } | { success: false; error: string }> {
-  console.log('[Save Seed Action - Mock DB] Received data:', data);
+  try {
+      const seedPhrasesCollection = await getSeedPhrasesCollection();
 
-  // Simulate encryption (replace with actual encryption)
-  const encryptedSeedPhrase = `encrypted(${data.seedPhrase.substring(0, 5)}...)`;
-  console.log('[Save Seed Action - Mock DB] Simulated Encrypted Seed Phrase:', encryptedSeedPhrase);
-
-  // Simulate database interaction
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newEntry: SeedPhraseData = {
-        ...data,
-        _id: `seed-${seedPhraseIdCounter++}`,
-        seedPhrase: encryptedSeedPhrase, // Store encrypted version
-        createdAt: new Date(),
+      const newEntry: Omit<SeedPhraseData, '_id'> = {
+          ...data,
+          seedPhrase: encryptedSeedPhrase, // Store the encrypted version
+          createdAt: new Date(),
+          // Ensure userId is an ObjectId
+          userId: new ObjectId(data.userId)
       };
-      mockSeedPhraseDatabase.push(newEntry);
 
-      console.log('[Save Seed Action - Mock DB] Mock data saved successfully:', newEntry);
-      resolve({ success: true, id: newEntry._id! });
-    }, 1500); // Simulate network latency
-  });
+      const result = await seedPhrasesCollection.insertOne(newEntry as SeedPhraseData); // Cast needed as insertOne expects the full type
+
+      if (!result.insertedId) {
+          console.error('[Save Seed Action - DB] Insertion failed.');
+          return { success: false, error: 'Failed to save seed phrase to database.' };
+      }
+
+      const insertedIdString = result.insertedId.toString();
+      console.log('[Save Seed Action - DB] Seed phrase saved successfully:', insertedIdString);
+      return { success: true, id: insertedIdString };
+
+  } catch (error) {
+      console.error('[Save Seed Action - DB] Error saving seed phrase:', error);
+      return { success: false, error: 'Database error saving seed phrase.' };
+  }
 }
 
 
 export async function saveSeedPhraseAction(
-  formData: SeedPhraseFormClientData // Accept partial data from form
+  formData: Omit<SeedPhraseFormData, 'userId'> // Expect form data without userId
 ): Promise<{ success: boolean; error?: string }> {
 
   // 1. Get User ID from session
-  const userId = await getMockUserIdFromSession();
+  const userId = await getUserIdFromSession();
   if (!userId) {
       return { success: false, error: 'User not authenticated. Please log in.' };
   }
 
-  // 2. Combine form data with userId (and potentially email if needed later)
-  //    For now, we only add userId as per the updated schema.
+  // 2. Combine form data with userId (as ObjectId)
   const fullDataToValidate = {
     ...formData,
-    userId: userId,
-    // If email is ever needed on the SeedPhraseData object, fetch it based on userId
-    // email: await getUserEmailById(userId), // Placeholder
+    userId: userId, // Use the ObjectId retrieved from the session
   };
 
-
   // 3. Validate the *complete* data structure on the server
-   // We need to validate the full structure now, including the userId we added
-  const validatedFields = seedPhraseSchema.omit({ email: true }).safeParse(fullDataToValidate); // Omit email if not part of the seed data
-
+  const validatedFields = seedPhraseSchema.safeParse(fullDataToValidate);
 
   if (!validatedFields.success) {
     console.error('[Save Seed Action] Server-side validation failed:', validatedFields.error.flatten().fieldErrors);
-    // Extract a user-friendly error message
-     const firstError = Object.values(validatedFields.error.flatten().fieldErrors)[0]?.[0];
+    const firstError = Object.values(validatedFields.error.flatten().fieldErrors)[0]?.[0];
     return {
       success: false,
       error: firstError || 'Invalid seed phrase data. Please check your input.',
     };
   }
 
-  const dataToSave = validatedFields.data;
+  // Type assertion after validation
+  const dataToSave = validatedFields.data as Omit<SeedPhraseData, '_id' | 'createdAt'>;
 
-  // 4. **IMPORTANT**: Implement actual encryption and database saving here
+
+  // 4. Encrypt and save to database
   try {
-    const result = await mockDatabaseSave(dataToSave);
+    const result = await databaseSave(dataToSave);
 
     if (!result.success) {
-       console.error('[Save Seed Action] Database save failed:', result.error);
+       // Error logged within databaseSave
       return { success: false, error: result.error };
     }
 
     // 5. Revalidate cache for relevant paths
     revalidatePath('/dashboard'); // Revalidate dashboard where seeds are listed
-    revalidatePath('/save-seed'); // Revalidate the save page itself if needed
 
-    console.log('[Save Seed Action] Seed phrase saved successfully for user:', userId);
+    console.log('[Save Seed Action] Seed phrase saved successfully for user:', userId.toString());
     return { success: true };
 
   } catch (error) {
+     // Catch unexpected errors not handled within databaseSave
     console.error('[Save Seed Action] Unexpected error during save:', error);
      const message = error instanceof Error ? error.message : 'An unknown server error occurred.';
     return {
       success: false,
+      // Be cautious about exposing details
       error: `Server error: ${message}`,
     };
   }

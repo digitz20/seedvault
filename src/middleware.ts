@@ -1,19 +1,64 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { ObjectId } from 'mongodb';
+import { getUsersCollection } from './lib/mongodb'; // Adjust path if needed
 
-// --- Mock Authentication Check ---
-// In a real app, verify the session cookie/token using your auth library
-// (e.g., next-auth, iron-session) or JWT verification logic.
+// --- Authentication Check ---
+// Verifies session cookie and checks if user exists in the database.
 async function isAuthenticated(request: NextRequest): Promise<boolean> {
   const sessionId = request.cookies.get('session_id')?.value;
   console.log('[Middleware] Checking session cookie:', sessionId);
 
-  // Basic check: Does the cookie exist?
-  // Replace this with actual session validation against a backend store or JWT verification.
-  const isValidSession = !!sessionId && sessionId.startsWith('mock-session-');
+  if (!sessionId || !sessionId.startsWith('session-')) {
+    console.log('[Middleware] Invalid or missing session cookie.');
+    return false;
+  }
 
-  console.log('[Middleware] Is session valid (mock check)?', isValidSession);
-  return isValidSession;
+  // Extract userId string from session ID
+  const userIdString = sessionId.split('-')[1];
+  if (!userIdString) {
+      console.warn('[Middleware] Could not extract userId from session:', sessionId);
+      return false;
+  }
+
+  console.log('[Middleware] Extracted userIdString:', userIdString);
+
+  let userId: ObjectId;
+  try {
+      userId = new ObjectId(userIdString);
+      console.log('[Middleware] Converted to ObjectId:', userId);
+  } catch (e) {
+      console.error('[Middleware] Invalid userId format in session, cannot convert to ObjectId:', userIdString, e);
+      // Optionally clear the invalid cookie here
+      // const response = NextResponse.next();
+      // response.cookies.delete('session_id');
+      // Consider returning the response if deleting cookie, otherwise just return false
+      return false;
+  }
+
+
+  // Verify user exists in the database
+  try {
+      const usersCollection = await getUsersCollection();
+      // Use countDocuments for efficiency if you only need existence check
+      const userCount = await usersCollection.countDocuments({ _id: userId });
+      const userExists = userCount > 0;
+
+      if (userExists) {
+          console.log('[Middleware] User ID verified in database.');
+          return true;
+      } else {
+          console.warn('[Middleware] User ID from session not found in database:', userId);
+          // Optionally clear the invalid cookie here
+           // const response = NextResponse.next();
+           // response.cookies.delete('session_id');
+           // Consider returning the response if deleting cookie, otherwise just return false
+          return false;
+      }
+  } catch (error) {
+      console.error('[Middleware] Database error during authentication check:', error);
+      return false; // Assume not authenticated if DB error occurs
+  }
 }
 // --------------------------------
 
@@ -35,7 +80,14 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL('/login', request.url);
       // Optionally add a 'redirectedFrom' query parameter
       // loginUrl.searchParams.set('redirectedFrom', pathname);
-      return NextResponse.redirect(loginUrl);
+      const response = NextResponse.redirect(loginUrl);
+       // If the session was invalid, ensure the bad cookie is cleared on redirect
+      if (!request.cookies.has('session_id') || !(await isAuthenticated(request))) { // Re-check or check flag from isAuthenticated
+         response.cookies.delete('session_id');
+         console.log('[Middleware] Cleared invalid session cookie on redirect.');
+      }
+      return response;
+
     }
     console.log(`[Middleware] User authenticated for protected route: ${pathname}. Allowing access.`);
   }

@@ -1,27 +1,97 @@
-// import { getUserSession } from '@/lib/auth'; // Placeholder for auth function
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { PlusCircle, ShieldCheck, LogOut } from 'lucide-react';
+import { ObjectId } from 'mongodb';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
-import { PlusCircle, ShieldCheck } from 'lucide-react';
-// import { SeedPhraseList } from './_components/seed-phrase-list'; // Component to display saved seeds (implement later)
+import { getSeedPhrasesCollection, getUsersCollection } from '@/lib/mongodb';
+import type { SeedPhraseData, User } from '@/lib/definitions';
+import { SeedPhraseList } from './_components/seed-phrase-list'; // Import the list component
+import { logoutAction } from './_actions/logout-action'; // Import logout action
+
+// --- Authentication & User Data Retrieval ---
+async function getUserDataFromSession(): Promise<{ user: Omit<User, 'passwordHash'> & {id: string} } | null> {
+  const sessionId = cookies().get('session_id')?.value;
+  if (!sessionId || !sessionId.startsWith('session-')) {
+    console.log('[Dashboard] No valid session found.');
+    return null;
+  }
+
+  // Extract userId from session ID (adjust based on your session ID format)
+  const userIdString = sessionId.split('-')[1];
+  if (!userIdString) {
+      console.error('[Dashboard] Could not extract userId from session:', sessionId);
+      return null;
+  }
+
+  console.log('[Dashboard] Extracted userIdString:', userIdString);
+
+  let userId: ObjectId;
+  try {
+      userId = new ObjectId(userIdString);
+       console.log('[Dashboard] Converted to ObjectId:', userId);
+  } catch (e) {
+      console.error('[Dashboard] Invalid userId format in session, cannot convert to ObjectId:', userIdString, e);
+      // Clear invalid cookie?
+      // cookies().delete('session_id');
+      return null;
+  }
+
+
+  try {
+    const usersCollection = await getUsersCollection();
+    const userDoc = await usersCollection.findOne({ _id: userId });
+
+    if (!userDoc) {
+      console.warn('[Dashboard] User not found in DB for userId:', userId);
+      // Clear invalid cookie?
+      // cookies().delete('session_id');
+      return null;
+    }
+
+    // Return user data without the password hash
+    const { passwordHash, ...userData } = userDoc;
+     console.log('[Dashboard] Found user:', userData.email);
+    return { user: { ...userData, id: userDoc._id.toString() } };
+
+  } catch (error) {
+    console.error('[Dashboard] Error fetching user data:', error);
+    return null;
+  }
+}
+
+// --- Fetch Seed Phrases ---
+async function getSeedPhrasesForUser(userId: ObjectId): Promise<SeedPhraseData[]> {
+   console.log('[Dashboard] Fetching seed phrases for userId (ObjectId):', userId);
+  try {
+    const seedPhrasesCollection = await getSeedPhrasesCollection();
+    const phrases = await seedPhrasesCollection.find({ userId: userId }).toArray();
+    console.log(`[Dashboard] Found ${phrases.length} seed phrases for user.`);
+    // Ensure _id is stringified if needed by the client component, though SeedPhraseList might handle ObjectId
+     return phrases.map(phrase => ({
+      ...phrase,
+      _id: phrase._id?.toString(), // Convert ObjectId to string for client component props if necessary
+      userId: phrase.userId.toString(), // Convert userId ObjectId to string
+    })) as unknown as SeedPhraseData[]; // Cast needed due to ObjectId conversion complexity
+
+  } catch (error) {
+    console.error('[Dashboard] Error fetching seed phrases:', error);
+    return []; // Return empty array on error
+  }
+}
 
 export default async function DashboardPage() {
-  // --- Authentication Check (Placeholder) ---
-  // In a real app, protect this route and get user data
-  // const session = await getUserSession();
-  // if (!session?.user) {
-  //   redirect('/login'); // Redirect to login if not authenticated
-  // }
-  // const user = session.user;
-  // Replace with mock user for now
-  const user = { email: 'user@example.com', id: 'mock-user-id' };
-  // -----------------------------------------
+  // 1. Authentication Check & Get User Data
+  const sessionData = await getUserDataFromSession();
+  if (!sessionData?.user) {
+    redirect('/login'); // Redirect to login if not authenticated
+  }
+  const user = sessionData.user;
 
-  // --- Fetch Seed Phrases (Placeholder) ---
-  // Fetch seed phrases associated with the user.id from the database
-  // const seedPhrases = await getSeedPhrasesForUser(user.id);
-  const seedPhrases: any[] = []; // Mock empty array for now
-  // ------------------------------------
+  // 2. Fetch Seed Phrases for the User
+  const seedPhrases = await getSeedPhrasesForUser(new ObjectId(user.id)); // Pass ObjectId
 
   return (
     <div className="container mx-auto flex min-h-screen flex-col px-4 py-12 sm:px-6 lg:px-8">
@@ -30,8 +100,12 @@ export default async function DashboardPage() {
            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Your SeedVault Dashboard</h1>
            <p className="text-muted-foreground">Welcome back, {user.email}!</p>
         </div>
-        {/* Add Logout Button Here (implement later) */}
-         <Button variant="outline" size="sm">Log Out</Button>
+         {/* Logout Button */}
+         <form action={logoutAction}>
+            <Button type="submit" variant="outline" size="sm">
+              <LogOut className="mr-2 h-4 w-4" /> Log Out
+            </Button>
+         </form>
       </header>
 
       <Card className="w-full shadow-lg">
@@ -56,11 +130,8 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-             // Placeholder for the list component
-            <div className="text-center text-muted-foreground">
-                Seed phrase list will be displayed here.
-                {/* <SeedPhraseList seedPhrases={seedPhrases} /> */}
-            </div>
+            // Render the list component
+            <SeedPhraseList seedPhrases={seedPhrases} />
           )}
         </CardContent>
       </Card>

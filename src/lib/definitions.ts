@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ObjectId } from 'mongodb'; // Import ObjectId
 
 // --- Wallet Types ---
 // Expanded list of wallet types (ensure this meets the > 70 requirement)
@@ -105,7 +106,6 @@ export const WalletTypes = [
 
 // --- Seed Phrase Schemas ---
 export const seedPhraseSchema = z.object({
-  // Removed email field, assuming user context will provide it later
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
@@ -130,15 +130,17 @@ export const seedPhraseSchema = z.object({
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }),
-   // Add userId to associate with the logged-in user
-  userId: z.string().min(1, { message: 'User association is required.' }),
+  // userId is now ObjectId | string for flexibility before/after DB insertion
+  userId: z.union([z.custom<ObjectId>(), z.string()]).refine(val => val !== '', { message: 'User association is required.'}),
 });
 
 export type SeedPhraseFormData = z.infer<typeof seedPhraseSchema>;
 
 // Data structure potentially including database ID and timestamp
-export type SeedPhraseData = SeedPhraseFormData & {
-  _id?: string; // Optional ID from MongoDB or other DB
+// Use ObjectId for _id from MongoDB
+export type SeedPhraseData = Omit<SeedPhraseFormData, '_id'> & {
+  _id?: ObjectId;
+  userId: ObjectId; // In the database, userId should always be an ObjectId
   createdAt?: Date;
 };
 
@@ -148,7 +150,6 @@ export type SeedPhraseData = SeedPhraseFormData & {
 export const signupSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
-  // Add confirm password if needed on the frontend, but validation happens here
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;
@@ -162,9 +163,10 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 
 
 // --- User Data Structure ---
+// Represents user data as stored in MongoDB
 export type User = {
-  id: string; // Typically from database
+  _id: ObjectId; // Use ObjectId for MongoDB ID
   email: string;
-  // Do NOT include password hash here for client-side use
+  passwordHash: string; // Store the hashed password
   createdAt?: Date;
 };

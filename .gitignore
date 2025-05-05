@@ -3,12 +3,8 @@
 # dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
+.yarn/install-state.gz
 
 # testing
 /coverage
@@ -28,7 +24,11 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
+*.env*.local
+
+# local env files
+.env.local
+.env.*.local
 
 # vercel
 .vercel
@@ -37,5 +37,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.genkit/*
-.env*
+# project root secrets
+credentials.*
+
+# Patch package
+# /patches
+
+# Google Cloud Functions artifacts (if applicable)
+/functions/lib/
+/functions/*.log
+/functions/coverage/
+
+# Genkit State (contains sensitive data if keys are embedded)
+.genkit/state.json
