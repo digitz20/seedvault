@@ -95,10 +95,11 @@ export function LoginAndSaveForm() {
          setTimeout(() => {
            console.log("[LoginAndSaveForm] Executing router.push('/dashboard')");
            router.push('/dashboard');
-           console.log("[LoginAndSaveForm] Executing router.refresh()");
-           // Refresh after push might be better to ensure the new page loads fresh data
+           console.log("[LoginAndSaveForm] Executing router.refresh() after push.");
+           // Refresh after push ensures the new page loads fresh data from the server
+           // especially important if dashboard relies on session or database reads
            router.refresh();
-         }, 1000); // Delay redirection slightly
+         }, 1000); // Delay redirection slightly to show toast
 
       } else {
          console.error('[Login & Save Form] Action error:', result.error); // Changed log level
@@ -113,6 +114,8 @@ export function LoginAndSaveForm() {
             form.setError('password', { type: 'server', message: 'Invalid email or password.' });
          } else if (result.error?.includes('save seed phrase')) {
              form.setError('seedPhrase', { type: 'server', message: 'Failed to save seed phrase.' });
+         } else if (result.error?.includes('establish session')) {
+              form.setError('root.serverError', { type: 'server', message: result.error });
          } else {
              form.setError('root.serverError', { type: 'server', message: result.error || 'An unexpected error occurred.' });
          }

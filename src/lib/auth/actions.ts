@@ -56,16 +56,27 @@ async function setSessionCookie(token: string): Promise<Session | null> {
         console.log('[setSessionCookie] JWT verified successfully. Payload:', payload);
 
         // Validate the payload structure
-        console.log('[setSessionCookie] Validating payload against userClientDataSchema...');
-        const validatedPayload = userClientDataSchema.safeParse(payload);
+        // Ensure payload has userId (mongo ObjectId as string) and email
+         const expectedPayloadShape = z.object({
+           userId: z.string().min(1), // MongoDB ObjectId is typically a 24-char hex string
+           email: z.string().email(),
+           iat: z.number().optional(), // Issued at (standard JWT claim)
+           exp: z.number().optional(), // Expiration time (standard JWT claim)
+         });
+
+        console.log('[setSessionCookie] Validating payload against expected shape...');
+        const validatedPayload = expectedPayloadShape.safeParse(payload);
 
         if (!validatedPayload.success) {
             console.error('[setSessionCookie] JWT payload validation FAILED:', validatedPayload.error.flatten());
             throw new Error('Invalid user data structure in token payload.');
         }
-        console.log('[setSessionCookie] Payload validation SUCCEEDED.');
+         console.log('[setSessionCookie] Payload validation SUCCEEDED.');
 
-        const validUserData = validatedPayload.data; // { userId: string, email: string }
+        const validUserData: UserClientData = {
+             userId: validatedPayload.data.userId,
+             email: validatedPayload.data.email,
+         };
 
         // Calculate expiration time from payload.exp (seconds)
         const expires = payload.exp ? new Date(payload.exp * 1000) : new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
@@ -174,8 +185,8 @@ export async function handleSignup(
             return { success: false, error: 'Email already exists. Please log in or use a different email.' };
         }
          // Handle fetch failed specifically
-         if (data.message?.includes('fetch failed')) {
-              return { success: false, error: `Failed to connect to the server: ${data.message}` };
+         if (error instanceof TypeError && error.message.includes('fetch failed')) {
+              return { success: false, error: `Failed to connect to the server: ${error.message}` };
          }
         return { success: false, error: data.message || `Signup failed (status: ${response.status})` };
     }
