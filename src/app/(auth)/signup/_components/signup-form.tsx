@@ -20,7 +20,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, UserPlus, Mail, KeyRound, Eye, EyeOff } from 'lucide-react'; // Import icons
+import { Loader2, UserPlus, Mail, KeyRound, Eye, EyeOff, AlertTriangle } from 'lucide-react'; // Import icons
 
 export function SignupForm() {
   const router = useRouter();
@@ -66,10 +66,16 @@ export function SignupForm() {
       }
     } catch (error) {
        console.error('Unexpected signup form error:', error);
+       let detailedError = 'An unknown error occurred.';
+       if (error instanceof TypeError && error.message.includes('fetch failed')) {
+           detailedError = `Could not connect to the backend server at ${process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001'}. Please ensure it's running and accessible.`;
+       } else if (error instanceof Error) {
+           detailedError = error.message;
+       }
        toast({
            variant: 'destructive',
            title: 'Signup Error',
-           description: 'An unexpected error occurred during signup. Please try again later.',
+           description: `An unexpected error occurred: ${detailedError}`,
        });
         form.setError('root.serverError', { type: 'catch', message: 'An unexpected error occurred.' });
     } finally {
@@ -112,7 +118,8 @@ export function SignupForm() {
                  <FormControl>
                    <Input
                      type={showPassword ? "text" : "password"}
-                     placeholder="Choose a strong password (min. 8 characters)"
+                     // Update placeholder text
+                     placeholder="Choose a strong password"
                      {...field}
                      required
                      className="pr-10" // Add padding for the button
@@ -146,6 +153,11 @@ export function SignupForm() {
              </>
           )}
         </Button>
+
+        {/* Security Warning */}
+        <p className="text-xs text-destructive text-center mt-4 flex items-center justify-center gap-1">
+           <AlertTriangle className="h-3 w-3 flex-shrink-0" /> Warning: Do not share your account password with anyone. SeedVault cannot recover lost passwords.
+        </p>
       </form>
     </Form>
   );

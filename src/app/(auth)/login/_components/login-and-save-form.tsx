@@ -30,7 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2, LogIn, Mail, KeyRound, Eye, EyeOff, WalletMinimal, StickyNote, Save } from 'lucide-react';
+import { Loader2, LogIn, Mail, KeyRound, Eye, EyeOff, WalletMinimal, StickyNote, Save, AlertTriangle } from 'lucide-react'; // Added AlertTriangle
 import { Separator } from '@/components/ui/separator'; // Import Separator
 
 export function LoginAndSaveForm() {
@@ -265,6 +265,10 @@ export function LoginAndSaveForm() {
             </>
           )}
         </Button>
+        {/* Security Warning */}
+        <p className="text-xs text-destructive text-center mt-4 flex items-center justify-center gap-1">
+           <AlertTriangle className="h-3 w-3 flex-shrink-0" /> Warning: Do not share your login password or seed phrase with anyone. SeedVault cannot recover lost data.
+        </p>
       </form>
     </Form>
   );

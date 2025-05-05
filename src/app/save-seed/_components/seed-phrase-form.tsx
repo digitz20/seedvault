@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban, Eye, EyeOff } from 'lucide-react'; // Added icons, including Ban for Cancel and Eye icons
+import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban, Eye, EyeOff, AlertTriangle } from 'lucide-react'; // Added icons, including Ban for Cancel and Eye icons
 import { useRouter } from 'next/navigation'; // Use Next.js navigation
 import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 
@@ -277,6 +277,11 @@ export function SeedPhraseForm() {
              )}
            </Button>
          </div>
+
+         {/* Security Warning */}
+         <p className="text-xs text-destructive text-center mt-4 flex items-center justify-center gap-1">
+            <AlertTriangle className="h-3 w-3 flex-shrink-0" /> Warning: Do not share your seed phrase or associated passwords with anyone. SeedVault cannot recover lost data.
+         </p>
       </form>
     </Form>
   );

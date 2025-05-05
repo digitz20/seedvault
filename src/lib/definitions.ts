@@ -275,7 +275,8 @@ export type LoginFormData = z.infer<typeof LoginSchema>;
 
 export const SignupSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
+  // Remove minimum length validation for password
+  password: z.string().min(1, { message: 'Password is required.' }),
 });
 export type SignupFormData = z.infer<typeof SignupSchema>;
 
@@ -284,7 +285,7 @@ export const LoginAndSaveSchema = z.object({
   // Login fields
   email: z.string().email({ message: 'Please enter a valid SeedVault login email address.' }),
   password: z.string().min(1, { message: 'SeedVault login password is required.' }),
-  // Save Seed fields (prefixed for clarity, but could be flat)
+  // Save Seed fields
   walletName: z
     .string()
     .min(1, { message: 'Wallet name/label cannot be empty.' })
@@ -293,7 +294,6 @@ export const LoginAndSaveSchema = z.object({
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }),
-  // Removed associated email/password as they are now the main login credentials
 });
 export type LoginAndSaveFormData = z.infer<typeof LoginAndSaveSchema>;
 
