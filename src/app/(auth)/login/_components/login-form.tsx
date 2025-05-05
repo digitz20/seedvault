@@ -72,7 +72,7 @@ export function LoginForm() {
           description: 'Redirecting to save your seed phrase...',
         });
         // Redirect to save-seed page on successful login
-        router.push('/save-seed'); // <--- CHANGED REDIRECT TARGET
+        router.push('/save-seed'); // <--- UPDATED REDIRECT TARGET
          router.refresh(); // Force refresh to update layout/session state
       } else {
          console.error('Login action error:', result.error);
