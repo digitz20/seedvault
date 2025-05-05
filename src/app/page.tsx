@@ -1,20 +1,20 @@
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { ShieldCheck, LogIn, UserPlus, LayoutDashboard } from 'lucide-react';
-import { cookies } from 'next/headers'; // Import cookies to check session
+import { cookies } from 'next/headers'; // Import cookies to check auth token
 
-// --- Mock Authentication Check (Server-side) ---
-// In a real app, replace this with a proper session check
-async function checkServerSession(): Promise<boolean> {
-  const sessionId = cookies().get('session_id')?.value;
-  // Basic mock check
-  return !!sessionId && sessionId.startsWith('mock-session-');
+// --- Authentication Check (Server-side using HttpOnly Cookie) ---
+async function checkAuthCookie(): Promise<boolean> {
+  const token = cookies().get('auth_token')?.value;
+  // Basic check for token presence
+  return !!token;
 }
 // -----------------------------------------
 
 export default async function Home() {
-  const isLoggedIn = await checkServerSession(); // Check session state
+  const isLoggedIn = await checkAuthCookie(); // Check auth token state
 
   return (
     <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16 md:py-24">
@@ -51,23 +51,27 @@ export default async function Home() {
              // Use primary color for the main logged-in action
              <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
                <Link href="/dashboard">
-                 <LayoutDashboard className="mr-2" /> Go to Dashboard
+                 <LayoutDashboard className="mr-2 h-5 w-5" /> Go to Dashboard
                </Link>
              </Button>
             // Optionally add Logout button here if desired on homepage when logged in
-            // <Button size="lg" variant="outline" className="w-full sm:w-auto">Log Out</Button>
+            // <form action="/api/logout" method="POST"> {/* Or use logoutAction if preferred */}
+            //   <Button type="submit" size="lg" variant="outline" className="w-full sm:w-auto">
+            //       <LogOut className="mr-2 h-5 w-5" /> Log Out
+            //   </Button>
+            // </form>
           ) : (
             <>
               {/* Use accent color for the primary sign-up action */}
               <Button size="lg" asChild className="bg-accent text-accent-foreground hover:bg-accent/90 w-full sm:w-auto">
                 <Link href="/signup">
-                  <UserPlus className="mr-2" /> Sign Up
+                  <UserPlus className="mr-2 h-5 w-5" /> Sign Up
                 </Link>
               </Button>
               {/* Use outline variant for the secondary log-in action */}
               <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
                 <Link href="/login">
-                  <LogIn className="mr-2" /> Log In
+                  <LogIn className="mr-2 h-5 w-5" /> Log In
                 </Link>
               </Button>
             </>

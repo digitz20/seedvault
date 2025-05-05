@@ -1,78 +1,20 @@
+
 'use server';
 
 import type { SignupFormData } from '@/lib/definitions';
 import { signupSchema } from '@/lib/definitions';
-import bcrypt from 'bcrypt';
-import { getUsersCollection } from '@/lib/mongodb';
-import { MongoServerError } from 'mongodb';
 
-// --- Database Interaction ---
-async function databaseSignup(data: SignupFormData): Promise<{ success: true; userId: string } | { success: false; error: string }> {
-  console.log('[Signup Action] Received data for DB:', data);
-  const usersCollection = await getUsersCollection();
-
-  // Check if email already exists
-  try {
-    const existingUser = await usersCollection.findOne({ email: data.email });
-    if (existingUser) {
-      console.warn('[Signup Action] DB: Email already exists');
-      return { success: false, error: 'Email already exists. Please log in or use a different email.' };
-    }
-  } catch (error) {
-     console.error('[Signup Action] DB: Error checking for existing user:', error);
-     return { success: false, error: 'Database error during signup preparation.' };
-  }
-
-
-  // Hash the password
-  const saltRounds = 10;
-  let passwordHash: string;
-  try {
-      passwordHash = await bcrypt.hash(data.password, saltRounds);
-      console.log('[Signup Action] Password hashed successfully.');
-  } catch (hashError) {
-      console.error('[Signup Action] Error hashing password:', hashError);
-      return { success: false, error: 'Error securing password.' };
-  }
-
-
-  // Save the new user to the database
-  try {
-    const newUser = {
-      email: data.email,
-      passwordHash: passwordHash,
-      createdAt: new Date(),
-    };
-    const result = await usersCollection.insertOne(newUser);
-
-    if (!result.insertedId) {
-        console.error('[Signup Action] DB: User insertion failed.');
-        return { success: false, error: 'Failed to create user account.' };
-    }
-
-    const userId = result.insertedId.toString(); // Convert ObjectId to string
-    console.log('[Signup Action] DB: User created successfully:', { userId: userId, email: data.email });
-    return { success: true, userId: userId };
-
-  } catch (error) {
-     if (error instanceof MongoServerError && error.code === 11000) { // Duplicate key error
-       console.warn('[Signup Action] DB: Email already exists (caught by unique index)');
-       return { success: false, error: 'Email already exists. Please log in or use a different email.' };
-     }
-     console.error('[Signup Action] DB: Error inserting user:', error);
-     return { success: false, error: 'Database error creating user account.' };
-  }
-}
-
+// Base URL for your backend API (adjust as needed, use environment variable)
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
 
 export async function signupAction(
   formData: SignupFormData
-): Promise<{ success: boolean; error?: string; userId?: string }> {
-  // 1. Validate data on the server
+): Promise<{ success: boolean; error?: string }> {
+  // 1. Validate data on the server-side (Next.js server action) first
   const validatedFields = signupSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    console.error('[Signup Action] Server-side validation failed:', validatedFields.error.flatten().fieldErrors);
+    console.error('[Signup Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
     const firstError = Object.values(validatedFields.error.flatten().fieldErrors)[0]?.[0];
     return {
       success: false,
@@ -80,27 +22,44 @@ export async function signupAction(
     };
   }
 
-  const dataToSave = validatedFields.data;
+  const dataToSend = validatedFields.data;
+  console.log('[Signup Action] Sending signup request to backend:', { email: dataToSend.email });
 
-  // 2. Perform database signup logic
+  // 2. Call the backend API
   try {
-    const result = await databaseSignup(dataToSave);
+    const response = await fetch(`${BACKEND_API_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(dataToSend),
+    });
 
-    if (!result.success) {
-       // Don't log error here again, it's logged within databaseSignup
-       return { success: false, error: result.error };
+    // Check if the request was successful
+    if (response.ok) {
+        console.log('[Signup Action] Backend signup successful for:', dataToSend.email);
+        const result = await response.json(); // Optional: read success message
+        return { success: true };
+    } else {
+      // Handle API errors (e.g., email exists, validation failed on backend)
+      let errorMessage = `Signup failed with status: ${response.status}`;
+      try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage; // Use backend message if available
+          console.error('[Signup Action] Backend signup failed:', errorMessage);
+      } catch (e) {
+          console.error('[Signup Action] Backend signup failed, could not parse error response:', response.statusText);
+          errorMessage = `Signup failed: ${response.statusText}`;
+      }
+      return { success: false, error: errorMessage };
     }
-
-    console.log('[Signup Action] User signed up successfully:', { email: dataToSave.email, userId: result.userId });
-    return { success: true, userId: result.userId };
-
   } catch (error) {
-    // Catch unexpected errors not handled within databaseSignup
-    console.error('[Signup Action] Unexpected error during signup:', error);
-    const message = error instanceof Error ? error.message : 'An unknown server error occurred during signup.';
+    // Handle network errors or other unexpected issues
+    console.error('[Signup Action] Network or unexpected error calling backend:', error);
+     const message = error instanceof Error ? error.message : 'An unknown network error occurred during signup.';
     return {
       success: false,
-      error: `Server error: ${message}`, // Be cautious about exposing error details
+      error: `Signup failed: ${message}`,
     };
   }
 }

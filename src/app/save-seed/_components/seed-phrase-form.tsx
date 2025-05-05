@@ -1,11 +1,12 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import type * as z from 'zod';
-import { seedPhraseSchema, WalletTypes } from '@/lib/definitions';
-// Update the type import to exclude email and userId initially from the form
-import type { Omit } from 'utility-types'; // You might need to install utility-types: npm install utility-types
+// Use the schema specifically for the form data sent to the backend
+import { seedPhraseFormSchema, WalletTypes } from '@/lib/definitions';
+import type { SeedPhraseFormData } from '@/lib/definitions'; // Use the form data type
 
 import { Button } from '@/components/ui/button';
 import {
@@ -30,37 +31,36 @@ import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
 import { Loader2, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Import useRouter for redirect
 
-// Define the form data type without email and userId
-type SeedPhraseFormClientData = Omit<z.infer<typeof seedPhraseSchema>, 'email' | 'userId'>;
+// Use the SeedPhraseFormData type directly for the form
+type SeedPhraseFormClientData = SeedPhraseFormData;
 
 
 export function SeedPhraseForm() {
   const { toast } = useToast();
+  const router = useRouter(); // Initialize router
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Update useForm default values and type
   const form = useForm<SeedPhraseFormClientData>({
-    // Use a resolver that ignores the missing fields initially
-    // OR adjust the schema used here if Zod allows partials easily
-    resolver: zodResolver(seedPhraseSchema.omit({ email: true, userId: true })),
+    resolver: zodResolver(seedPhraseFormSchema), // Use the form schema for validation
     defaultValues: {
       walletName: '',
       seedPhrase: '',
-      walletType: undefined,
+      walletType: undefined, // Make sure a wallet type is selected
     },
   });
 
  async function onSubmit(values: SeedPhraseFormClientData) {
     setIsSubmitting(true);
-    console.log("Submitting form values:", values);
+    console.log("Submitting form values:", { walletName: values.walletName, walletType: values.walletType }); // Don't log seed
 
     try {
-      // The server action `saveSeedPhraseAction` will need to be updated
-      // to accept this partial data and add the userId from the session.
+      // Call the updated server action which now calls the backend API
       const result = await saveSeedPhraseAction(values);
 
-      console.log("Action result:", result);
+      console.log("Save action result:", result);
 
       if (result.success) {
         toast({
@@ -68,8 +68,10 @@ export function SeedPhraseForm() {
           description: 'Your seed phrase has been securely saved.',
         });
         form.reset(); // Reset form on successful submission
+        // Optionally redirect back to dashboard
+        router.push('/dashboard');
       } else {
-         console.error("Action error:", result.error);
+         console.error("Save action error:", result.error);
         toast({
           variant: 'destructive',
           title: 'Error Saving Seed Phrase',
@@ -86,7 +88,7 @@ export function SeedPhraseForm() {
       toast({
         variant: 'destructive',
         title: 'Submission Failed',
-        description: `Could not save seed phrase: ${errorMessage}. Please check the console for details and try again.`,
+        description: `Could not save seed phrase: ${errorMessage}. Please try again.`,
       });
         form.setError('root', { // General error on catch
           type: 'manual',
@@ -103,11 +105,10 @@ export function SeedPhraseForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
          {/* Display root errors */}
         {form.formState.errors.root && (
-            <FormMessage className="text-center">
+            <FormMessage className="text-center text-destructive">
                 {form.formState.errors.root.message}
             </FormMessage>
         )}
-        {/* Email Field Removed */}
 
         {/* Wallet Name/Label */}
         <FormField

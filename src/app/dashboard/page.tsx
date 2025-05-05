@@ -1,104 +1,124 @@
+
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { PlusCircle, ShieldCheck, LogOut } from 'lucide-react';
-import { ObjectId } from 'mongodb';
+// Removed: import { ObjectId } from 'mongodb';
+// Removed: import { getSeedPhrasesCollection, getUsersCollection } from '@/lib/mongodb';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getSeedPhrasesCollection, getUsersCollection } from '@/lib/mongodb';
-import type { SeedPhraseData, User } from '@/lib/definitions';
+import type { SeedPhraseMetadata, UserClientData } from '@/lib/definitions'; // Use SeedPhraseMetadata
 import { SeedPhraseList } from './_components/seed-phrase-list'; // Import the list component
 import { logoutAction } from './_actions/logout-action'; // Import logout action
 
-// --- Authentication & User Data Retrieval ---
-async function getUserDataFromSession(): Promise<{ user: Omit<User, 'passwordHash'> & {id: string} } | null> {
-  const sessionId = cookies().get('session_id')?.value;
-  if (!sessionId || !sessionId.startsWith('session-')) {
-    console.log('[Dashboard] No valid session found.');
-    return null;
-  }
+// Base URL for your backend API
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
 
-  // Extract userId from session ID (adjust based on your session ID format)
-  const userIdString = sessionId.split('-')[1];
-  if (!userIdString) {
-      console.error('[Dashboard] Could not extract userId from session:', sessionId);
-      return null;
-  }
-
-  console.log('[Dashboard] Extracted userIdString:', userIdString);
-
-  let userId: ObjectId;
-  try {
-      userId = new ObjectId(userIdString);
-       console.log('[Dashboard] Converted to ObjectId:', userId);
-  } catch (e) {
-      console.error('[Dashboard] Invalid userId format in session, cannot convert to ObjectId:', userIdString, e);
-      // Clear invalid cookie?
-      // cookies().delete('session_id');
-      return null;
-  }
-
-
-  try {
-    const usersCollection = await getUsersCollection();
-    const userDoc = await usersCollection.findOne({ _id: userId });
-
-    if (!userDoc) {
-      console.warn('[Dashboard] User not found in DB for userId:', userId);
-      // Clear invalid cookie?
-      // cookies().delete('session_id');
-      return null;
+// --- Fetch User Data from Token (Example - Decode on Server) ---
+// This is a conceptual example. In a real app, you might decode the JWT
+// server-side if needed, or rely on client-side context after login.
+// For simplicity here, we'll assume user info might be needed directly on the page.
+// Alternatively, manage user state client-side after login.
+async function getUserDataFromToken(): Promise<UserClientData | null> {
+    const token = cookies().get('auth_token')?.value;
+    if (!token) {
+        console.log('[Dashboard] No auth token found.');
+        return null;
     }
 
-    // Return user data without the password hash
-    const { passwordHash, ...userData } = userDoc;
-     console.log('[Dashboard] Found user:', userData.email);
-    return { user: { ...userData, id: userDoc._id.toString() } };
+    try {
+        // WARNING: In a real app, DO NOT verify/decode JWTs directly on the frontend/Next.js server action.
+        // The secret should only live on the backend.
+        // This is a simplified example. Typically, you'd have an API endpoint like /api/auth/me
+        // that verifies the token and returns user info.
+        // For this example, we'll just simulate having user data available.
+        // We cannot decode the token here without the secret.
+        // Let's assume we have the user's email stored elsewhere or passed differently.
+        // Or, make a call to a backend endpoint:
+        // const response = await fetch(`${BACKEND_API_URL}/api/auth/me`, { headers: { 'Authorization': `Bearer ${token}` } });
+        // if (!response.ok) return null;
+        // const userData = await response.json();
+        // return { id: userData.id, email: userData.email, token };
 
-  } catch (error) {
-    console.error('[Dashboard] Error fetching user data:', error);
-    return null;
-  }
+        // --- Simplified Placeholder ---
+        // Since we can't decode, let's return placeholder data indicating logged-in status.
+        // The actual email won't be available here securely without a backend call or client-side state.
+        console.log('[Dashboard] User token found (cannot decode here). Assuming logged in.');
+        return { id: 'unknown', email: 'User' }; // Placeholder
+        // --- End Simplified Placeholder ---
+
+    } catch (error) {
+        console.error('[Dashboard] Error handling token (simulation):', error);
+        return null;
+    }
 }
 
-// --- Fetch Seed Phrases ---
-async function getSeedPhrasesForUser(userId: ObjectId): Promise<SeedPhraseData[]> {
-   console.log('[Dashboard] Fetching seed phrases for userId (ObjectId):', userId);
+
+// --- Fetch Seed Phrases from Backend API ---
+async function getSeedPhrasesFromApi(): Promise<SeedPhraseMetadata[]> {
+   const token = cookies().get('auth_token')?.value;
+   if (!token) {
+     console.warn('[Dashboard] No auth token found for fetching seed phrases.');
+     return [];
+   }
+
+   console.log('[Dashboard] Fetching seed phrases from backend API.');
   try {
-    const seedPhrasesCollection = await getSeedPhrasesCollection();
-    const phrases = await seedPhrasesCollection.find({ userId: userId }).toArray();
-    console.log(`[Dashboard] Found ${phrases.length} seed phrases for user.`);
-    // Ensure _id is stringified if needed by the client component, though SeedPhraseList might handle ObjectId
-     return phrases.map(phrase => ({
-      ...phrase,
-      _id: phrase._id?.toString(), // Convert ObjectId to string for client component props if necessary
-      userId: phrase.userId.toString(), // Convert userId ObjectId to string
-    })) as unknown as SeedPhraseData[]; // Cast needed due to ObjectId conversion complexity
+    const response = await fetch(`${BACKEND_API_URL}/api/dashboard/seed-phrases`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`, // Send the token
+        'Content-Type': 'application/json',
+      },
+      // Add cache control if needed, e.g., 'no-store' for fresh data
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+        // Handle different error statuses
+        if (response.status === 401 || response.status === 403) {
+            console.warn(`[Dashboard] Authentication error (${response.status}) fetching seed phrases. Token might be invalid or expired.`);
+            // Optionally trigger redirect or logout here
+            // redirect('/login?error=session_expired'); // Example
+        } else {
+            console.error(`[Dashboard] API error fetching seed phrases: ${response.status} ${response.statusText}`);
+        }
+        return []; // Return empty on error
+    }
+
+    const phrases: SeedPhraseMetadata[] = await response.json();
+    console.log(`[Dashboard] Received ${phrases.length} seed phrases from API.`);
+    // Data should already be in the correct format (SeedPhraseMetadata)
+    return phrases;
 
   } catch (error) {
-    console.error('[Dashboard] Error fetching seed phrases:', error);
-    return []; // Return empty array on error
+    console.error('[Dashboard] Network error fetching seed phrases:', error);
+    return []; // Return empty array on network error
   }
 }
 
 export default async function DashboardPage() {
-  // 1. Authentication Check & Get User Data
-  const sessionData = await getUserDataFromSession();
-  if (!sessionData?.user) {
-    redirect('/login'); // Redirect to login if not authenticated
+  // 1. Authentication Check (using cookie presence) & Get User Placeholder
+   // This check is now primarily handled by the middleware.
+   // We fetch user data mainly for display purposes if needed.
+  const userData = await getUserDataFromToken();
+  if (!userData) {
+     // This redirect might be redundant if middleware catches it first, but good as a fallback.
+    redirect('/login?error=not_authenticated');
   }
-  const user = sessionData.user;
+  const user = userData; // For display
 
-  // 2. Fetch Seed Phrases for the User
-  const seedPhrases = await getSeedPhrasesForUser(new ObjectId(user.id)); // Pass ObjectId
+  // 2. Fetch Seed Phrases via API
+  const seedPhrases = await getSeedPhrasesFromApi();
 
   return (
     <div className="container mx-auto flex min-h-screen flex-col px-4 py-12 sm:px-6 lg:px-8">
       <header className="mb-8 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-between sm:text-left">
         <div>
            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Your SeedVault Dashboard</h1>
-           <p className="text-muted-foreground">Welcome back, {user.email}!</p>
+           {/* Display placeholder or fetch actual email via separate mechanism */}
+           <p className="text-muted-foreground">Welcome back, {user.email || 'User'}!</p>
         </div>
          {/* Logout Button */}
          <form action={logoutAction}>
@@ -130,7 +150,7 @@ export default async function DashboardPage() {
               </Button>
             </div>
           ) : (
-            // Render the list component
+            // Render the list component - needs update to use SeedPhraseMetadata
             <SeedPhraseList seedPhrases={seedPhrases} />
           )}
         </CardContent>

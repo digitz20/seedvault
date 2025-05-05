@@ -1,5 +1,6 @@
+
 import { z } from 'zod';
-import type { ObjectId } from 'mongodb'; // Import ObjectId
+// Removed: import type { ObjectId } from 'mongodb'; // No longer needed here
 
 // --- Wallet Types ---
 // Expanded list of wallet types (ensure this meets the > 70 requirement)
@@ -105,7 +106,8 @@ export const WalletTypes = [
 ] as const;
 
 // --- Seed Phrase Schemas ---
-export const seedPhraseSchema = z.object({
+// Schema for data sent FROM the frontend form TO the backend API
+export const seedPhraseFormSchema = z.object({
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
@@ -130,19 +132,27 @@ export const seedPhraseSchema = z.object({
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }),
-  // userId is now ObjectId | string for flexibility before/after DB insertion
-  userId: z.union([z.custom<ObjectId>(), z.string()]).refine(val => val !== '', { message: 'User association is required.'}),
+  // Removed userId - Backend will add this based on authenticated user
 });
 
-export type SeedPhraseFormData = z.infer<typeof seedPhraseSchema>;
+export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
-// Data structure potentially including database ID and timestamp
-// Use ObjectId for _id from MongoDB
-export type SeedPhraseData = Omit<SeedPhraseFormData, '_id'> & {
-  _id?: ObjectId;
-  userId: ObjectId; // In the database, userId should always be an ObjectId
-  createdAt?: Date;
-};
+// Schema for data received FROM the backend API (list view, metadata only)
+export const seedPhraseMetadataSchema = z.object({
+  _id: z.string(), // Backend sends ObjectId as string
+  userId: z.string(), // Backend sends ObjectId as string
+  walletName: z.string(),
+  walletType: z.enum(WalletTypes),
+  createdAt: z.string().datetime().optional(), // Backend sends Date as ISO string
+});
+
+export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
+
+// Schema for the revealed seed phrase received from the backend
+export const revealedSeedPhraseSchema = z.object({
+    seedPhrase: z.string(),
+});
+export type RevealedSeedPhrase = z.infer<typeof revealedSeedPhraseSchema>;
 
 
 // --- User Authentication Schemas ---
@@ -161,12 +171,23 @@ export const loginSchema = z.object({
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 
+// Schema for data received FROM the backend after successful login
+export const loginResponseSchema = z.object({
+    message: z.string(),
+    token: z.string(),
+    user: z.object({
+        id: z.string(),
+        email: z.string(),
+    }),
+});
 
-// --- User Data Structure ---
-// Represents user data as stored in MongoDB
-export type User = {
-  _id: ObjectId; // Use ObjectId for MongoDB ID
+export type LoginResponseData = z.infer<typeof loginResponseSchema>;
+
+
+// --- User Data Structure (Frontend Representation) ---
+// Represents user data as needed on the client-side
+export type UserClientData = {
+  id: string;
   email: string;
-  passwordHash: string; // Store the hashed password
-  createdAt?: Date;
+  token?: string; // Store the JWT token on the client (e.g., in context or localStorage)
 };
