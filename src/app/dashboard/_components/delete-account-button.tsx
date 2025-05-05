@@ -43,12 +43,13 @@ export default function DeleteAccountButton() {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you sure you want to leave?</AlertDialogTitle>
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action will redirect you to the homepage. Your stored data will remain saved
-            but will only be accessible if you return to the dashboard.
+            This action will permanently delete your account, are you sure?
             <br />
-            <span className="font-semibold mt-2 block">This action does not delete your account data.</span>
+             <span className="font-semibold mt-2 block">
+                 (Note: This action currently redirects you to the homepage and does not delete data.)
+             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

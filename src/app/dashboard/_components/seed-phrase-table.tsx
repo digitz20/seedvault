@@ -216,8 +216,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                              <AlertDialogDescription>
                                 This will delete your seed phrase and cannot be recovered, are you sure?
-                                <br/>
-                                <span className="text-xs text-muted-foreground mt-2 block">(Note: This action only removes the entry from the current view and does not affect the database.)</span>
                              </AlertDialogDescription>
                          </AlertDialogHeader>
                          <AlertDialogFooter>
