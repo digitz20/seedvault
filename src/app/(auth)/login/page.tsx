@@ -1,14 +1,15 @@
 
 import { Suspense } from 'react';
-import { LoginForm } from './_components/login-form';
+// Update import to the combined form component
+import { LoginAndSaveForm } from './_components/login-and-save-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 // Helper component to read search params (needed for Suspense boundary)
+// Kept for potential future use, but the form now handles messages
 function LoginMessages() {
-  // This component remains simple as LoginForm now handles messages internally
   return null;
 }
 
@@ -22,18 +23,19 @@ export default function LoginPage() {
          </Link>
        </Button>
 
-      <Card className="w-full max-w-md shadow-xl">
+      <Card className="w-full max-w-lg shadow-xl"> {/* Increased max-width for more fields */}
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">Welcome Back!</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">Log In & Save Seed Phrase</CardTitle>
           <CardDescription>
-             Log in to access your secure SeedVault.
+             Log in to your SeedVault account and securely store your first seed phrase in one step.
              <Suspense fallback={null}>
                 <LoginMessages />
              </Suspense>
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm />
+           {/* Render the combined form */}
+           <LoginAndSaveForm />
         </CardContent>
          <CardContent className="mt-4 text-center text-sm">
            <p>

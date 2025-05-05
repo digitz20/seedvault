@@ -203,39 +203,38 @@ export const WalletTypes = [
   'Zulu Wallet' // Bitcoin/Lightning focus
 ] as const;
 
+// --- Common Seed Phrase Validation ---
+const seedPhraseValidation = z
+  .string()
+  .min(1, { message: 'Seed phrase cannot be empty.' })
+  .transform(value => value.trim().toLowerCase())
+  .refine(
+    (value) => {
+      const words = value.split(/\s+/).filter(Boolean);
+      return [12, 15, 18, 21, 24].includes(words.length);
+    },
+    {
+      message:
+        'Seed phrase must contain 12, 15, 18, 21, or 24 words.',
+    }
+  )
+  .describe('The 12, 15, 18, 21, or 24 word recovery phrase.');
 
-// --- Seed Phrase Schema ---
-// Schema for data sent FROM the frontend form TO the backend API
-// This includes the userId which will be added by the server action based on the session.
+// --- Seed Phrase Schema for Saving (Used by Save Action/Page) ---
 export const seedPhraseFormSchema = z.object({
-  // userId is NOT included here; it's added server-side based on auth
   email: z.string().email({ message: 'Please enter a valid email address.' })
-    .min(1, { message: 'Associated email cannot be empty.'}) // Make email required
+    .min(1, { message: 'Associated email cannot be empty.' })
     .describe('The email address associated with the specific wallet or service.'),
   emailPassword: z.string()
-    .min(1, { message: 'Associated password cannot be empty.'}) // Make password required
-    .max(100, { message: 'Password seems too long.'}) // Basic check
+    .min(1, { message: 'Associated password cannot be empty.' })
+    .max(100, { message: 'Password seems too long.' })
     .describe('The password associated with the specific wallet or service. Not your SeedVault login password.'),
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
     .max(50, { message: 'Wallet name cannot exceed 50 characters.' })
     .describe('A descriptive name for this wallet entry (e.g., "My Main Ledger").'),
-  seedPhrase: z
-    .string()
-    .min(1, { message: 'Seed phrase cannot be empty.'}) // Ensure it's not completely empty
-    .transform(value => value.trim().toLowerCase()) // Trim and convert to lowercase before validation
-    .refine(
-      (value) => {
-        const words = value.split(/\s+/).filter(Boolean);
-        return [12, 15, 18, 21, 24].includes(words.length);
-      },
-      {
-        message:
-          'Seed phrase must contain 12, 15, 18, 21, or 24 words.',
-      }
-    )
-    .describe('The 12, 15, 18, 21, or 24 word recovery phrase.'),
+  seedPhrase: seedPhraseValidation, // Use common validation
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }).describe('The type of wallet or service this seed phrase belongs to.'),
@@ -244,35 +243,33 @@ export const seedPhraseFormSchema = z.object({
 // Type for data used in the Save Seed Phrase form on the client
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
-// Schema for the metadata returned for the dashboard list (user-specific list)
+// Schema for the metadata returned for the dashboard list
 export const seedPhraseMetadataSchema = z.object({
-  _id: z.string(), // MongoDB ObjectId as string
-  // userId is not returned to the client here
+  _id: z.string(),
   walletName: z.string(),
-  walletType: z.enum(WalletTypes), // Use the expanded enum
-  createdAt: z.string().datetime(), // Date as ISO string
+  walletType: z.enum(WalletTypes),
+  createdAt: z.string().datetime(),
 });
 
 export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 
-// Schema for the data returned when revealing a seed phrase (user-specific access by ID)
+// Schema for the data returned when revealing a seed phrase
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
-  // userId is not returned
-  encryptedEmail: z.string().optional().or(z.literal('')), // Allow empty string from backend if not set
-  encryptedEmailPassword: z.string().optional().or(z.literal('')), // Allow empty string
-  encryptedSeedPhrase: z.string(), // Should always exist
+  encryptedEmail: z.string().optional().or(z.literal('')),
+  encryptedEmailPassword: z.string().optional().or(z.literal('')),
+  encryptedSeedPhrase: z.string(),
   walletName: z.string(),
-  walletType: z.enum(WalletTypes), // Use the expanded enum
+  walletType: z.enum(WalletTypes),
 });
 
 export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
 
 
-// --- Authentication Schemas (Restored) ---
+// --- Authentication Schemas ---
 export const LoginSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(1, { message: 'Password is required.' }),
+  password: z.string().min(1, { message: 'Password is required.' }), // Keep min 1 for login
 });
 export type LoginFormData = z.infer<typeof LoginSchema>;
 
@@ -282,17 +279,34 @@ export const SignupSchema = z.object({
 });
 export type SignupFormData = z.infer<typeof SignupSchema>;
 
+// Schema for the combined Login + Save Seed form
+export const LoginAndSaveSchema = z.object({
+  // Login fields
+  email: z.string().email({ message: 'Please enter a valid SeedVault login email address.' }),
+  password: z.string().min(1, { message: 'SeedVault login password is required.' }),
+  // Save Seed fields (prefixed for clarity, but could be flat)
+  walletName: z
+    .string()
+    .min(1, { message: 'Wallet name/label cannot be empty.' })
+    .max(50, { message: 'Wallet name cannot exceed 50 characters.' }),
+  seedPhrase: seedPhraseValidation, // Use common validation
+  walletType: z.enum(WalletTypes, {
+    errorMap: () => ({ message: 'Please select a valid wallet type.' }),
+  }),
+  // Removed associated email/password as they are now the main login credentials
+});
+export type LoginAndSaveFormData = z.infer<typeof LoginAndSaveSchema>;
+
+
 // Schema representing the user data stored in the JWT / session cookie
 export const userClientDataSchema = z.object({
   userId: z.string(),
   email: z.string().email(),
-  // Add other non-sensitive fields if needed in the session
 });
 export type UserClientData = z.infer<typeof userClientDataSchema>;
 
-// --- Session Type (Restored) ---
-// Represents the structure of the decoded JWT payload
+// --- Session Type ---
 export type Session = {
   user: UserClientData; // Contains user ID and email
   expires: string; // ISO timestamp string for expiration
-} | null; // Can be null if no session exists
+} | null;
