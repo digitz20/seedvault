@@ -135,7 +135,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
             localStorage.setItem(LOCAL_STORAGE_REMOVED_KEY, JSON.stringify(Array.from(newRemovedIds)));
              toast({
                title: 'Seed phrase deleted successfully', // Updated title
-               description: 'The entry has been removed from your view. It has not been deleted from the database.', // Updated description
+               description: 'The entry has been deleted successfully.', // Updated description
              });
         } catch (error) {
             console.error("Error writing removed phrases to localStorage:", error);
