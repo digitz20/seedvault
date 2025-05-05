@@ -56,11 +56,27 @@ async function SeedPhraseList() {
 function TableSkeleton() {
     return (
         <div className="space-y-4 p-4">
-             <div className="h-8 bg-muted rounded w-1/4 animate-pulse"></div>
-             <div className="space-y-2">
-                 {[...Array(3)].map((_, i) => (
-                     <div key={i} className="h-10 bg-muted/50 rounded w-full animate-pulse"></div>
-                 ))}
+             <div className="h-8 bg-muted rounded w-1/4 animate-pulse mb-4"></div> {/* Header Skel */}
+             <div className="border rounded-md">
+                 <div className="flex justify-between p-4 border-b bg-muted/50">
+                     <div className="h-5 bg-muted rounded w-1/5 animate-pulse"></div>
+                     <div className="h-5 bg-muted rounded w-1/5 animate-pulse"></div>
+                     <div className="h-5 bg-muted rounded w-1/4 animate-pulse"></div>
+                     <div className="h-5 bg-muted rounded w-1/6 animate-pulse"></div>
+                 </div>
+                 <div className="space-y-2 p-4">
+                     {[...Array(3)].map((_, i) => (
+                         <div key={i} className="flex justify-between items-center h-10">
+                             <div className="h-5 bg-muted rounded w-1/5 animate-pulse"></div>
+                             <div className="h-5 bg-muted rounded w-1/5 animate-pulse"></div>
+                             <div className="h-5 bg-muted rounded w-1/4 animate-pulse"></div>
+                             <div className="flex gap-2 w-1/6 justify-end">
+                                <div className="h-8 w-8 bg-muted rounded animate-pulse"></div>
+                                <div className="h-8 w-8 bg-muted rounded animate-pulse"></div>
+                             </div>
+                         </div>
+                     ))}
+                 </div>
              </div>
         </div>
     )
@@ -127,3 +143,4 @@ export default async function DashboardPage() {
     </div>
   );
 }
+

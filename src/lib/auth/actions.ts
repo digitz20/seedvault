@@ -262,7 +262,8 @@ export async function handleLoginAndSave(
         console.log(`[LoginAndSave Action] Seed phrase save successful for wallet: ${walletName}. Setting cookie.`);
         // Save was successful, now set the session cookie
         await setSessionCookie(loginToken);
-        revalidatePath('/dashboard'); // Revalidate dashboard path
+        revalidatePath('/dashboard'); // Revalidate dashboard path to show new data
+        console.log('[LoginAndSave Action] Revalidated /dashboard path.');
         return { success: true };
     } else {
       // Handle seed phrase saving errors
