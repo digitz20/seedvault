@@ -47,13 +47,14 @@ export default async function Home() {
                 Continue <ArrowRight className="ml-2 h-5 w-5" />
              </Link>
            </Button>
-
-           {/* Warning Text */}
-           <p className="mt-2 text-center text-xs font-semibold text-destructive">
-             Warning: Do not share your seed phrase with anyone, it may lead to loss of data.
-           </p>
+           {/* Warning Text moved below the card */}
         </CardFooter>
       </Card>
+
+       {/* Warning Text - Moved outside and below the Card */}
+       <p className="mt-4 text-center text-xs font-semibold text-destructive">
+         Warning: Do not share your seed phrase with anyone, it may lead to loss of data.
+       </p>
     </div>
   );
 }
