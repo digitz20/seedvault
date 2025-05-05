@@ -4,7 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import type * as z from 'zod';
 import { seedPhraseSchema, WalletTypes } from '@/lib/definitions';
-import type { SeedPhraseFormData } from '@/lib/definitions';
+// Update the type import to exclude email and userId initially from the form
+import type { Omit } from 'utility-types'; // You might need to install utility-types: npm install utility-types
+
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -25,35 +27,40 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { saveSeedPhraseAction } from '../_actions/save-seed-action'; // Ensure action path is correct
+import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Wallet, Lock } from 'lucide-react'; // Import icons
+import { Loader2, Lock } from 'lucide-react';
+
+// Define the form data type without email and userId
+type SeedPhraseFormClientData = Omit<z.infer<typeof seedPhraseSchema>, 'email' | 'userId'>;
+
 
 export function SeedPhraseForm() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<SeedPhraseFormData>({
-    resolver: zodResolver(seedPhraseSchema),
+  // Update useForm default values and type
+  const form = useForm<SeedPhraseFormClientData>({
+    // Use a resolver that ignores the missing fields initially
+    // OR adjust the schema used here if Zod allows partials easily
+    resolver: zodResolver(seedPhraseSchema.omit({ email: true, userId: true })),
     defaultValues: {
-      email: '',
       walletName: '',
       seedPhrase: '',
       walletType: undefined,
     },
   });
 
- async function onSubmit(values: SeedPhraseFormData) {
+ async function onSubmit(values: SeedPhraseFormClientData) {
     setIsSubmitting(true);
-    console.log("Submitting form values:", values); // Log values before sending
+    console.log("Submitting form values:", values);
 
     try {
-      // IMPORTANT: DO NOT send the email password from the client-side.
-      // If email password is truly needed, it should be handled securely on the backend,
-      // potentially during a separate authentication/verification step, not collected here.
+      // The server action `saveSeedPhraseAction` will need to be updated
+      // to accept this partial data and add the userId from the session.
       const result = await saveSeedPhraseAction(values);
 
-      console.log("Action result:", result); // Log result from action
+      console.log("Action result:", result);
 
       if (result.success) {
         toast({
@@ -68,6 +75,10 @@ export function SeedPhraseForm() {
           title: 'Error Saving Seed Phrase',
           description: result.error || 'An unexpected error occurred. Please try again.',
         });
+         form.setError('root', { // General error
+            type: 'manual',
+            message: result.error || 'An unexpected error occurred.',
+         });
       }
     } catch (error) {
       console.error('Form submission error:', error);
@@ -77,6 +88,10 @@ export function SeedPhraseForm() {
         title: 'Submission Failed',
         description: `Could not save seed phrase: ${errorMessage}. Please check the console for details and try again.`,
       });
+        form.setError('root', { // General error on catch
+          type: 'manual',
+          message: `Could not save seed phrase: ${errorMessage}.`,
+       });
     } finally {
       setIsSubmitting(false);
     }
@@ -86,23 +101,13 @@ export function SeedPhraseForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {/* Email */}
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Your Email</FormLabel>
-              <FormControl>
-                <Input placeholder="you@example.com" {...field} />
-              </FormControl>
-              <FormDescription>
-                We'll associate this entry with your email.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+         {/* Display root errors */}
+        {form.formState.errors.root && (
+            <FormMessage className="text-center">
+                {form.formState.errors.root.message}
+            </FormMessage>
+        )}
+        {/* Email Field Removed */}
 
         {/* Wallet Name/Label */}
         <FormField
@@ -136,7 +141,7 @@ export function SeedPhraseForm() {
                 <SelectContent>
                   {WalletTypes.map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type} {/* Consider adding icons here later */}
+                      {type}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -157,7 +162,7 @@ export function SeedPhraseForm() {
               <FormControl>
                 <Textarea
                   placeholder="Enter your 12, 15, 18, 21, or 24 word seed phrase here..."
-                  className="min-h-[100px] resize-none font-mono" // Use mono font for clarity
+                  className="min-h-[100px] resize-none font-mono"
                   {...field}
                 />
               </FormControl>
