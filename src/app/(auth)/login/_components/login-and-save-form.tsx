@@ -61,6 +61,8 @@ export function LoginAndSaveForm() {
          description: message,
          variant: error ? 'destructive' : 'default',
        });
+       // Remove the message from the URL without reloading the page
+       router.replace('/login', undefined);
      }
      if (error && !message) {
         toast({
@@ -68,8 +70,9 @@ export function LoginAndSaveForm() {
            description: error,
            variant: 'destructive',
         });
+        router.replace('/login', undefined);
      }
-   }, [searchParams, toast]);
+   }, [searchParams, toast, router]);
 
   async function onSubmit(values: LoginAndSaveFormData) {
     setIsSubmitting(true);
@@ -80,17 +83,25 @@ export function LoginAndSaveForm() {
       const result = await handleLoginAndSave(values);
 
       if (result.success) {
-         console.log("[LoginAndSaveForm] Action successful. Navigating to dashboard..."); // Added log
+         console.log("[LoginAndSaveForm] Action successful. Preparing redirection..."); // Added log
         toast({
           title: 'Success!',
           description: 'Logged in and seed phrase saved. Redirecting to dashboard...',
+          duration: 2000, // Give user a moment to see the toast
         });
         // Redirect to dashboard on successful login and save
         // Using push for navigation and refresh to update server component state
-        router.push('/dashboard');
-        router.refresh(); // Crucial for potentially updating session state recognized by server components/layout
+        // Use setTimeout to allow toast to be seen before navigation potentially clears it
+         setTimeout(() => {
+           console.log("[LoginAndSaveForm] Executing router.push('/dashboard')");
+           router.push('/dashboard');
+           console.log("[LoginAndSaveForm] Executing router.refresh()");
+           // Refresh after push might be better to ensure the new page loads fresh data
+           router.refresh();
+         }, 1000); // Delay redirection slightly
+
       } else {
-         console.error('Login & Save action error:', result.error);
+         console.error('[Login & Save Form] Action error:', result.error); // Changed log level
          toast({
            variant: 'destructive',
            title: 'Operation Failed',
@@ -105,6 +116,7 @@ export function LoginAndSaveForm() {
          } else {
              form.setError('root.serverError', { type: 'server', message: result.error || 'An unexpected error occurred.' });
          }
+         setIsSubmitting(false); // Stop loading on error
       }
     } catch (error) {
       console.error('Unexpected login & save form error:', error);
@@ -120,9 +132,10 @@ export function LoginAndSaveForm() {
            description: `An unexpected error occurred: ${detailedError}`,
        });
        form.setError('root.serverError', { type: 'catch', message: 'An unexpected error occurred.' });
-    } finally {
-      setIsSubmitting(false);
+       setIsSubmitting(false); // Stop loading on catch
     }
+    // Don't set submitting to false here if success path uses setTimeout
+    // It's handled within the success/error/catch blocks now.
   }
 
   const togglePasswordVisibility = () => {
@@ -167,6 +180,7 @@ export function LoginAndSaveForm() {
                      {...field}
                      required
                      className="pr-10"
+                     autoComplete="current-password"
                    />
                  </FormControl>
                  <Button
@@ -197,7 +211,7 @@ export function LoginAndSaveForm() {
             <FormItem>
               <FormLabel className="flex items-center"><WalletMinimal className="mr-2 h-4 w-4 text-muted-foreground" /> Wallet Name / Label *</FormLabel>
               <FormControl>
-                <Input placeholder="e.g., My Main Ledger" {...field} required />
+                <Input placeholder="e.g., My Main Ledger" {...field} required autoComplete="off" />
               </FormControl>
               <FormDescription>A name to help you identify this entry.</FormDescription>
               <FormMessage />
@@ -245,6 +259,7 @@ export function LoginAndSaveForm() {
                   className="min-h-[100px] resize-none font-mono"
                   {...field}
                   required
+                  autoComplete="off"
                 />
               </FormControl>
               <FormDescription>

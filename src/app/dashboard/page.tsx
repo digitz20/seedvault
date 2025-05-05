@@ -8,19 +8,19 @@ import { getSeedPhraseMetadataAction } from "./_actions/dashboard-actions";
 import SeedPhraseTable from "./_components/seed-phrase-table";
 import DeleteAccountButton from './_components/delete-account-button';
 import type { SeedPhraseMetadata } from '@/lib/definitions';
-import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth
+import { getUserAuth } from '@/lib/auth/utils'; // Import getUserAuth
 import { redirect } from 'next/navigation'; // Import redirect
-import { getUserAuth } from '@/lib/auth/utils'; // Import getUserAuth to get user email
 
 // Component to fetch and display data, handling loading and errors
 async function SeedPhraseList() {
-  // Authentication is already verified in the main page component
-  const { phrases, error } = await getSeedPhraseMetadataAction(); // Action now handles auth implicitly
+  // Authentication should be verified by the page component before this renders
+  // The action implicitly uses the user's token from the cookie
+  const { phrases, error } = await getSeedPhraseMetadataAction();
 
   if (error) {
-    // Check for specific auth error message to redirect
+    // Check for specific auth error message to redirect (although page-level check is primary)
     if (error.includes('Authentication required') || error.includes('Authentication failed')) {
-         console.warn("[Dashboard - SeedPhraseList] Auth error during data fetch. Redirecting.");
+         console.warn("[Dashboard - SeedPhraseList] Auth error during data fetch. Redirecting (redundant).");
          redirect('/login?message=Session expired or invalid. Please log in again.');
     }
 
@@ -34,7 +34,6 @@ async function SeedPhraseList() {
     );
   }
 
-  // The filtering of 'removed' phrases happens client-side in SeedPhraseTable
   const allPhrases = phrases || [];
 
   if (allPhrases.length === 0) {
@@ -48,7 +47,7 @@ async function SeedPhraseList() {
     );
   }
 
-  // Pass all phrases to the table; it will handle filtering based on localStorage
+  // Pass all phrases to the table
   return <SeedPhraseTable phrases={allPhrases} />;
 }
 
@@ -85,17 +84,16 @@ function TableSkeleton() {
 export default async function DashboardPage() {
    let userEmail: string | null = null;
 
-   // Verify authentication - redirect if not logged in
-   try {
-       const { session } = await getUserAuth(); // Get session which includes user email
-       if (!session?.user) {
-            throw new Error("User not authenticated");
-       }
-       userEmail = session.user.email;
-       console.log(`[Dashboard Page] User authenticated: ${userEmail}`);
-   } catch (error) {
+   // Verify authentication using getUserAuth which returns the session or null
+   // This is the primary authentication check for the page.
+   const { session } = await getUserAuth();
+
+   if (!session?.user) {
         console.warn("[Dashboard Page] User not authenticated. Redirecting to login.");
        redirect('/login?message=Please log in to view your dashboard.');
+   } else {
+       userEmail = session.user.email;
+       console.log(`[Dashboard Page] User authenticated: ${userEmail}`);
    }
 
 
@@ -133,7 +131,7 @@ export default async function DashboardPage() {
       </Card>
 
         <div className="mt-8 flex flex-col items-center gap-4">
-           {/* Pass user email or ID if needed by the button, or let it handle auth internally */}
+           {/* Delete account button handles its own auth */}
            <DeleteAccountButton />
            {/* Security Warning moved here */}
            <p className="text-destructive font-semibold text-center text-sm mt-4 flex items-center gap-1.5">
@@ -143,4 +141,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-
