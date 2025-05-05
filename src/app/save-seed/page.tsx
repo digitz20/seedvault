@@ -10,10 +10,10 @@ export default async function SaveSeedPage() {
    // Removed authentication check - page is now public
 
   return (
-    <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
+    <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative"> {/* Added relative positioning */}
+       {/* Position the back button */}
        <Button variant="ghost" size="sm" className="absolute left-4 top-4 md:left-8 md:top-8" asChild>
-          {/* Link back to dashboard or home */}
-         <Link href="/dashboard"> {/* Or change to href="/" if dashboard isn't useful without auth */}
+         <Link href="/dashboard">
            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
          </Link>
@@ -36,3 +36,4 @@ export default async function SaveSeedPage() {
     </div>
   );
 }
+

@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { LogOut } from 'lucide-react'; // Using LogOut icon as a metaphor for leaving
+import { Trash2 } from 'lucide-react'; // Using Trash2 icon for deletion
 import { useToast } from '@/hooks/use-toast';
 
 export default function DeleteAccountButton() {
@@ -37,8 +37,9 @@ export default function DeleteAccountButton() {
   return (
     <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
       <AlertDialogTrigger asChild>
+        {/* Changed button text */}
         <Button variant="destructive">
-          <LogOut className="mr-2 h-4 w-4" /> Leave SeedVault
+          <Trash2 className="mr-2 h-4 w-4" /> Delete Account
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
@@ -46,22 +47,20 @@ export default function DeleteAccountButton() {
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
             This action will permanently delete your account, are you sure?
-            <br />
-             <span className="font-semibold mt-2 block">
-                 (Note: This action currently redirects you to the homepage and does not delete data.)
-             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
              onClick={handleRedirect}
-             className="bg-primary hover:bg-primary/90" // Use primary color for confirmation
+             className="bg-destructive hover:bg-destructive/90" // Use destructive color for confirmation
             >
-             Yes, Redirect Me
+            {/* Changed action button text */}
+             Yes, Delete Account
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
+
