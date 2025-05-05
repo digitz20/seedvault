@@ -1,5 +1,6 @@
 
-const bcrypt = require('bcrypt');
+// Removed bcrypt import as it's no longer used
+// const bcrypt = require('bcrypt');
 const jwt =require('jsonwebtoken');
 const User = require('../models/User'); // Import User model
 
@@ -14,9 +15,10 @@ const signupUser = async (req, res) => {
     if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required.' });
     }
-     if (password.length < 8) {
-         return res.status(400).json({ message: 'Password must be at least 8 characters long.' });
-     }
+     // Removed password length validation for plain text storage
+     // if (password.length < 8) {
+     //     return res.status(400).json({ message: 'Password must be at least 8 characters long.' });
+     // }
      if (!/.+@.+\..+/.test(email)) {
           return res.status(400).json({ message: 'Please enter a valid email address.' });
      }
@@ -29,17 +31,17 @@ const signupUser = async (req, res) => {
             return res.status(409).json({ message: 'Email already exists. Please log in or use a different email.' }); // 409 Conflict
         }
 
-        // Create new user instance (password will be hashed by pre-save hook in User model)
+        // Create new user instance (password is NOT hashed)
         const newUser = new User({
             email: email.toLowerCase(), // Store email in lowercase
-            password,
+            password, // Store password directly as plain text
         });
 
         // Save the new user
         await newUser.save();
         console.log(`[Signup Controller] User registered successfully: ${newUser.email}`);
 
-        // Respond with success (don't send back password hash)
+        // Respond with success (don't send back password)
         res.status(201).json({
             message: 'User registered successfully.',
             user: { id: newUser._id, email: newUser.email } // Send back minimal user info
@@ -75,8 +77,9 @@ const loginUser = async (req, res) => {
             return res.status(401).json({ message: 'Invalid email or password.' }); // 401 Unauthorized
         }
 
-        // Compare provided password with the stored hash
-        const isMatch = await user.comparePassword(password);
+        // Compare provided plain text password with the stored plain text password
+        const isMatch = user.password === password; // Direct comparison
+
         if (!isMatch) {
             console.warn(`[Login Controller] Login attempt failed: Incorrect password for email ${email}`);
             return res.status(401).json({ message: 'Invalid email or password.' }); // 401 Unauthorized

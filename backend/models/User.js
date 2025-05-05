@@ -1,8 +1,8 @@
 
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt'); // Restore bcrypt import
+// const bcrypt = require('bcrypt'); // Removed bcrypt import
 
-// User Schema (Restored Password Handling)
+// User Schema (Password Not Hashed)
 const UserSchema = new mongoose.Schema({
   email: {
     type: String,
@@ -15,7 +15,7 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required.'], // Make password required again
-    minlength: [8, 'Password must be at least 8 characters long.'], // Restore minlength validation
+    // Removed minlength validation for plain text storage, although you might want UI validation
   },
   createdAt: {
     type: Date,
@@ -23,7 +23,8 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-// Restore Pre-save hook to hash password
+// Removed Pre-save hook to hash password
+/*
 UserSchema.pre('save', async function (next) {
   // Only hash the password if it has been modified (or is new)
   // Also ensure password is not null/undefined before hashing
@@ -38,9 +39,10 @@ UserSchema.pre('save', async function (next) {
     next(err); // Pass error to the next middleware or error handler
   }
 });
+*/
 
-
-// Restore Method to compare password for login
+// Removed Method to compare hashed password for login
+/*
 UserSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     // Ensure candidatePassword is a string before comparing
@@ -53,7 +55,7 @@ UserSchema.methods.comparePassword = async function (candidatePassword) {
     throw new Error('Error during password comparison.'); // Throw a generic error
   }
 };
-
+*/
 
 const User = mongoose.model('User', UserSchema);
 
