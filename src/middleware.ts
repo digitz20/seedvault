@@ -12,15 +12,19 @@ const publicPaths = ['/']; // Add other public paths like /about if needed
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  console.log(`[Middleware] Request for path: ${pathname}`); // Log requested path
 
   // 1. Check Authentication Status
+  console.log("[Middleware] Checking authentication status..."); // Log check start
   const session = await getSession(); // Check for a valid session cookie
   const isAuthenticated = !!session?.user; // True if user object exists in session
 
    console.log(`[Middleware] Path: ${pathname}, Authenticated: ${isAuthenticated}`);
 
   // 2. Handle Protected Routes
-  if (protectedRoutes.some(path => pathname.startsWith(path))) {
+   const isProtectedRoute = protectedRoutes.some(path => pathname.startsWith(path));
+   console.log(`[Middleware] Path ${pathname} is protected: ${isProtectedRoute}`); // Log protected check
+  if (isProtectedRoute) {
     if (!isAuthenticated) {
        console.log(`[Middleware] Denied access to ${pathname} (unauthenticated). Redirecting to login.`);
       // Redirect unauthenticated users trying to access protected routes to login
@@ -29,31 +33,35 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
      // If authenticated, allow access to protected route
-     console.log(`[Middleware] Allowed access to protected route: ${pathname}`);
+     console.log(`[Middleware] Allowed access to protected route: ${pathname}. Proceeding.`);
      return NextResponse.next();
   }
 
   // 3. Handle Authentication Routes (Login/Signup)
-  if (authRoutes.some(path => pathname.startsWith(path))) {
+   const isAuthRoute = authRoutes.some(path => pathname.startsWith(path));
+   console.log(`[Middleware] Path ${pathname} is auth route: ${isAuthRoute}`); // Log auth route check
+  if (isAuthRoute) {
     if (isAuthenticated) {
-       console.log(`[Middleware] Authenticated user accessing ${pathname}. Redirecting to dashboard.`);
+       console.log(`[Middleware] Authenticated user accessing auth route ${pathname}. Redirecting to dashboard.`);
       // Redirect authenticated users trying to access login/signup back to the dashboard
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
      // If not authenticated, allow access to login/signup page
-     console.log(`[Middleware] Allowed access to auth route: ${pathname}`);
+     console.log(`[Middleware] Allowed access to auth route: ${pathname}. Proceeding.`);
      return NextResponse.next();
   }
 
   // 4. Handle Public Routes (like homepage)
   // Everyone can access public paths, no specific checks needed here unless you have special cases.
-  if (publicPaths.includes(pathname)) {
-      console.log(`[Middleware] Allowed access to public route: ${pathname}`);
+   const isPublicRoute = publicPaths.includes(pathname);
+   console.log(`[Middleware] Path ${pathname} is public route: ${isPublicRoute}`); // Log public route check
+  if (isPublicRoute) {
+      console.log(`[Middleware] Allowed access to public route: ${pathname}. Proceeding.`);
       return NextResponse.next();
   }
 
   // 5. Default - Allow other paths (e.g., API routes, static files handled by config)
-  // console.log(`[Middleware] Allowing access to other path: ${pathname}`);
+   console.log(`[Middleware] Allowing access to other path (not explicitly public, private, or auth): ${pathname}. Proceeding.`);
   return NextResponse.next();
 }
 

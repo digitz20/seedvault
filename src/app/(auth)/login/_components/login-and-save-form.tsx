@@ -75,12 +75,17 @@ export function LoginAndSaveForm() {
    }, [searchParams, toast, router]);
 
   async function onSubmit(values: LoginAndSaveFormData) {
+    console.log("[LoginAndSaveForm] onSubmit starting..."); // Add log
     setIsSubmitting(true);
+    console.log("[LoginAndSaveForm] isSubmitting set to true."); // Add log
     form.clearErrors();
+    console.log("[LoginAndSaveForm] Form errors cleared."); // Add log
 
     try {
+      console.log("[LoginAndSaveForm] Calling handleLoginAndSave server action..."); // Add log
       // Call the combined login and save action
       const result = await handleLoginAndSave(values);
+      console.log("[LoginAndSaveForm] Server action result:", result); // Add log
 
       if (result.success) {
          console.log("[LoginAndSaveForm] Action successful. Preparing redirection..."); // Added log
@@ -92,13 +97,15 @@ export function LoginAndSaveForm() {
         // Redirect to dashboard on successful login and save
         // Using push for navigation and refresh to update server component state
         // Use setTimeout to allow toast to be seen before navigation potentially clears it
+         console.log("[LoginAndSaveForm] Setting timeout for redirection..."); // Add log
          setTimeout(() => {
-           console.log("[LoginAndSaveForm] Executing router.push('/dashboard')");
+           console.log("[LoginAndSaveForm] Timeout reached. Executing router.push('/dashboard')..."); // Add log
            router.push('/dashboard');
-           console.log("[LoginAndSaveForm] Executing router.refresh() after push.");
+           console.log("[LoginAndSaveForm] router.push finished. Executing router.refresh()..."); // Add log
            // Refresh after push ensures the new page loads fresh data from the server
            // especially important if dashboard relies on session or database reads
            router.refresh();
+           console.log("[LoginAndSaveForm] router.refresh finished."); // Add log
          }, 1000); // Delay redirection slightly to show toast
 
       } else {
@@ -119,6 +126,7 @@ export function LoginAndSaveForm() {
          } else {
              form.setError('root.serverError', { type: 'server', message: result.error || 'An unexpected error occurred.' });
          }
+         console.log("[LoginAndSaveForm] Setting isSubmitting to false due to action error."); // Add log
          setIsSubmitting(false); // Stop loading on error
       }
     } catch (error) {
@@ -135,10 +143,12 @@ export function LoginAndSaveForm() {
            description: `An unexpected error occurred: ${detailedError}`,
        });
        form.setError('root.serverError', { type: 'catch', message: 'An unexpected error occurred.' });
+       console.log("[LoginAndSaveForm] Setting isSubmitting to false due to catch block error."); // Add log
        setIsSubmitting(false); // Stop loading on catch
     }
     // Don't set submitting to false here if success path uses setTimeout
     // It's handled within the success/error/catch blocks now.
+    console.log("[LoginAndSaveForm] onSubmit finished."); // Add log
   }
 
   const togglePasswordVisibility = () => {
