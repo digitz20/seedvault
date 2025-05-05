@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { handleSignIn } from '@/lib/auth/actions'; // Use the auth action
-import { useState } from 'react';
+import React, { useState } from 'react'; // Import React here
 import { Loader2, LogIn } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
