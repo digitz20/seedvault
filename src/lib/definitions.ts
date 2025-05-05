@@ -99,22 +99,28 @@ export const WalletTypes = [
 // Schema for data sent FROM the frontend form TO the backend API
 export const seedPhraseFormSchema = z.object({
   // userId is added server-side via the authenticated token
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  emailPassword: z.string().min(1, { message: 'Email/Wallet password cannot be empty.' })
-    .max(100, { message: 'Password seems too long.'}), // Basic check
+  email: z.string().email({ message: 'Please enter a valid email address.' })
+    .optional() // Make email optional
+    .or(z.literal('')) // Allow empty string
+    .describe('The email address associated with the specific wallet or service, if applicable.'),
+  emailPassword: z.string()
+    .max(100, { message: 'Password seems too long.'}) // Basic check
+    .optional() // Make password optional
+    .or(z.literal('')) // Allow empty string
+    .describe('The password associated with the specific wallet or service, if applicable. Not your SeedVault login password.'),
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
-    .max(50, { message: 'Wallet name cannot exceed 50 characters.' }),
+    .max(50, { message: 'Wallet name cannot exceed 50 characters.' })
+    .describe('A descriptive name for this wallet entry (e.g., "My Main Ledger").'),
   seedPhrase: z
     .string()
-    .min(12 * 3, { message: 'Seed phrase seems too short.' }) // Rough minimum length check
-    .regex(/^[a-z]+(\s[a-z]+)*$/, {
-      message: 'Seed phrase should only contain lowercase words separated by spaces.',
-    })
+    .min(1, { message: 'Seed phrase cannot be empty.'}) // Ensure it's not completely empty
+    .transform(value => value.trim().toLowerCase()) // Trim and convert to lowercase before validation
     .refine(
       (value) => {
-        const words = value.trim().split(/\s+/);
+        // Allow phrases with numbers or symbols during input, but validate word count
+        const words = value.split(/\s+/).filter(Boolean); // Split by space and remove empty strings
         // BIP-39 standard word counts
         return [12, 15, 18, 21, 24].includes(words.length);
       },
@@ -122,10 +128,15 @@ export const seedPhraseFormSchema = z.object({
         message:
           'Seed phrase must contain 12, 15, 18, 21, or 24 words.',
       }
-    ),
+    )
+     // Optional: Add regex check after refinement if needed, but might be too strict during user input
+    // .regex(/^[a-z]+(\s[a-z]+)*$/, {
+    //    message: 'Seed phrase should ideally only contain lowercase words separated by single spaces.',
+    // })
+    .describe('The 12, 15, 18, 21, or 24 word recovery phrase.'),
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
-  }),
+  }).describe('The type of wallet or service this seed phrase belongs to.'),
 });
 
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
@@ -143,8 +154,8 @@ export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 // Schema for the data returned when revealing a seed phrase (contains encrypted fields)
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
-  encryptedEmail: z.string(),
-  encryptedEmailPassword: z.string(),
+  encryptedEmail: z.string().optional(), // Reflect that it might be optional/empty when saved
+  encryptedEmailPassword: z.string().optional(), // Reflect that it might be optional/empty when saved
   encryptedSeedPhrase: z.string(),
   walletName: z.string(),
   walletType: z.enum(WalletTypes),

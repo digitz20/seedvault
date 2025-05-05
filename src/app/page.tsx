@@ -39,7 +39,7 @@ export default async function Home() {
         <CardFooter className="flex flex-col items-center justify-center gap-4 sm:flex-row">
           {/* Changed to a single "Continue" button linking to /save-seed */}
           <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
-             <Link href="/save-seed">
+             <Link href="/save-seed"> {/* Updated href */}
                 Continue <ArrowRight className="ml-2 h-5 w-5" />
              </Link>
            </Button>

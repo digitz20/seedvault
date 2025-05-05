@@ -34,13 +34,14 @@ const SeedPhraseSchema = new mongoose.Schema({
        index: true, // Index for faster lookups by user
    },
   // Store encrypted email and password directly (associated with the wallet/service, NOT the user's login)
+  // Make these optional as they might not apply
   encryptedEmail: {
     type: String,
-    required: [true, 'Encrypted wallet/service email is required.'],
+    required: false, // Not strictly required anymore
   },
   encryptedEmailPassword: {
       type: String,
-      required: [true, 'Encrypted wallet/service password is required.'],
+      required: false, // Not strictly required anymore
   },
   walletName: {
     type: String,

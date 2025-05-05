@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { ShieldCheck, LogIn, UserPlus, LogOut, LayoutDashboard } from 'lucide-react'; // Using ShieldCheck for the logo
+import { ShieldCheck, LogOut, LayoutDashboard } from 'lucide-react'; // Using ShieldCheck for the logo, removed LogIn, UserPlus
 import { cn } from '@/lib/utils';
 import type { Session } from '@/lib/auth/utils'; // Import Session type
 import { Button } from '@/components/ui/button';
@@ -45,19 +45,15 @@ export default function Header({ session }: HeaderProps) {
                </form>
             </>
           ) : (
-            // If not logged in, show Login and Sign Up
-            <>
-               <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
-                 <Link href="/login">
-                   <LogIn className="mr-2 h-4 w-4" /> Login
+            // If not logged in, no explicit Login/Signup buttons shown here.
+            // Users are directed via the 'Continue' button on homepage or middleware redirects.
+            // Optionally, add a generic "Get Started" button if needed, which could link to '/save-seed' (and trigger login redirect if not logged in)
+             <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
+                 <Link href="/save-seed">
+                   {/* Using a generic icon or just text */}
+                    Get Started
                  </Link>
                </Button>
-                <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
-                  <Link href="/signup">
-                    <UserPlus className="mr-2 h-4 w-4" /> Sign Up
-                  </Link>
-               </Button>
-            </>
           )}
         </nav>
       </div>

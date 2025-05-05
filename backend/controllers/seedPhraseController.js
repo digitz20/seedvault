@@ -6,7 +6,7 @@ const SeedPhrase = require('../models/SeedPhrase'); // Import SeedPhrase model
 // Replace this with your actual robust encryption logic (e.g., using 'crypto' module with AES-GCM)
 // **NEVER use this placeholder in production.**
 const encryptPlaceholder = (data) => {
-    if (data === undefined || data === null) return '';
+    if (data === undefined || data === null || data === '') return ''; // Handle empty optional fields
     // Basic "encryption" - just wraps the data. Replace with real encryption.
     return `ENCRYPTED(${data.toString()})`;
 };
@@ -15,38 +15,51 @@ const encryptPlaceholder = (data) => {
 const saveSeedPhrase = async (req, res) => {
     // Get userId from the authenticated request (added by authMiddleware)
     const userId = req.user.id;
+    // Destructure all fields, including optional ones
     const { email, emailPassword, walletName, seedPhrase, walletType } = req.body;
 
-    // Backend validation (redundant with schema but good practice)
-    if (!email || !emailPassword || !walletName || !seedPhrase || !walletType) {
-        return res.status(400).json({ message: 'Missing required fields (email, emailPassword, walletName, seedPhrase, walletType).' });
+    // Backend validation: Ensure required fields are present
+    if (!walletName || !seedPhrase || !walletType) {
+        return res.status(400).json({ message: 'Missing required fields (walletName, seedPhrase, walletType).' });
     }
 
     // Basic check for phrase structure (more robust validation can be added)
-    if (typeof seedPhrase !== 'string' || seedPhrase.trim().split(/\s+/).length < 12) {
-         return res.status(400).json({ message: 'Invalid seed phrase format.' });
-    }
+     if (typeof seedPhrase !== 'string' || seedPhrase.trim().split(/\s+/).length < 12) {
+          return res.status(400).json({ message: 'Invalid seed phrase format (must be 12+ words).' });
+     }
+     // Consider adding validation for walletType enum here too for robustness
 
     try {
         // --- !!! ENCRYPTION LOGIC NEEDED HERE !!! ---
         // Encrypt sensitive data before saving. Use a strong, unique key per user, possibly derived from their password during login (handle key management carefully!).
         // This is a placeholder, replace with real encryption.
-        const encryptedEmail = encryptPlaceholder(email);
-        const encryptedEmailPassword = encryptPlaceholder(emailPassword);
-        const encryptedSeedPhrase = encryptPlaceholder(seedPhrase);
+        // Encrypt optional fields only if they are provided
+        const encryptedEmail = email ? encryptPlaceholder(email) : '';
+        const encryptedEmailPassword = emailPassword ? encryptPlaceholder(emailPassword) : '';
+        const encryptedSeedPhrase = encryptPlaceholder(seedPhrase); // This one is required
         // --- !!! END ENCRYPTION LOGIC !!! ---
 
-        // Basic check if placeholder encryption produced something (adjust for real encryption)
-        if (!encryptedEmail || !encryptedEmailPassword || !encryptedSeedPhrase || encryptedEmail === 'ENCRYPTED()' || encryptedEmailPassword === 'ENCRYPTED()' || encryptedSeedPhrase === 'ENCRYPTED()') {
-            console.error(`[Save Seed Controller] Encryption failed for user ${userId}.`);
-            return res.status(500).json({ message: 'Failed to secure submitted data.' });
+        // Basic check if required placeholder encryption produced something (adjust for real encryption)
+        if (!encryptedSeedPhrase || encryptedSeedPhrase === 'ENCRYPTED()') {
+            console.error(`[Save Seed Controller] Required Seed Phrase encryption failed for user ${userId}.`);
+            return res.status(500).json({ message: 'Failed to secure submitted seed phrase.' });
         }
+        // Check optional fields didn't fail if they were provided
+        if (email && (!encryptedEmail || encryptedEmail === 'ENCRYPTED()')) {
+             console.error(`[Save Seed Controller] Optional Email encryption failed for user ${userId}.`);
+            return res.status(500).json({ message: 'Failed to secure submitted email data.' });
+        }
+         if (emailPassword && (!encryptedEmailPassword || encryptedEmailPassword === 'ENCRYPTED()')) {
+             console.error(`[Save Seed Controller] Optional Password encryption failed for user ${userId}.`);
+            return res.status(500).json({ message: 'Failed to secure submitted password data.' });
+        }
+
 
         // Create new seed phrase instance
         const newSeed = new SeedPhrase({
             userId, // Link to the logged-in user
-            encryptedEmail,
-            encryptedEmailPassword,
+            encryptedEmail, // Save potentially empty encrypted string if not provided
+            encryptedEmailPassword, // Save potentially empty encrypted string if not provided
             walletName,
             encryptedSeedPhrase, // Save the *encrypted* phrase
             walletType,
@@ -129,8 +142,9 @@ const revealSeedPhrase = async (req, res) => {
         // 200 OK status code
         res.status(200).json({
              _id: phrase._id, // Include ID for client reference
-             encryptedEmail: phrase.encryptedEmail,
-             encryptedEmailPassword: phrase.encryptedEmailPassword,
+             // Return optional fields, they might be empty strings if not saved
+             encryptedEmail: phrase.encryptedEmail || '',
+             encryptedEmailPassword: phrase.encryptedEmailPassword || '',
              encryptedSeedPhrase: phrase.encryptedSeedPhrase,
              walletName: phrase.walletName, // Less sensitive, OK to return
              walletType: phrase.walletType, // Less sensitive, OK to return
