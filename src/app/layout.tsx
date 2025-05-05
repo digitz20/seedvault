@@ -5,7 +5,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 import { cn } from '@/lib/utils';
 import Header from '@/components/layout/header'; // Import the Header component
-import { getUserAuth } from '@/lib/auth/utils'; // Import auth utility
+// Removed getUserAuth import
 
 export const metadata: Metadata = {
   title: 'SeedVault - Secure Your Seed Phrases',
@@ -17,7 +17,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { session } = await getUserAuth(); // Check auth status on the server
+  // Removed getUserAuth call
 
   return (
     <html lang="en" suppressHydrationWarning className="min-h-screen">
@@ -27,7 +27,7 @@ export default async function RootLayout({
           GeistSans.variable
         )}
       >
-        <Header session={session} /> {/* Pass session status to Header */}
+        <Header /> {/* Pass session status no longer needed */}
         <main className="flex-1 flex flex-col items-center pt-4 pb-8"> {/* main content takes remaining space, added padding */}
           {children}
         </main>

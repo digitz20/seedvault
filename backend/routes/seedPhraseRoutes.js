@@ -6,25 +6,25 @@ const {
     revealSeedPhrase,
     deleteSeedPhrase
 } = require('../controllers/seedPhraseController');
-const authenticateToken = require('../middleware/authMiddleware'); // Import authentication middleware
+// Removed authenticateToken import
 
 const router = express.Router();
 
-// --- Seed Phrase Routes (Protected) ---
-// All routes require the user to be authenticated
+// --- Seed Phrase Routes (Now Public) ---
 
-// POST /api/seed-phrases - Save a new seed phrase entry for the logged-in user
-router.post('/', authenticateToken, saveSeedPhrase);
+// POST /api/seed-phrases - Save a new seed phrase entry (publicly)
+// Note: Consider if userId association is still needed or if it becomes anonymous/global
+router.post('/', saveSeedPhrase);
 
-// GET /api/seed-phrases/metadata - Get metadata (list) of all seed phrases for the logged-in user
-// Changed route from '/api/dashboard/seed-phrases' for consistency
-router.get('/metadata', authenticateToken, getSeedPhraseMetadata);
+// GET /api/seed-phrases/metadata - Get metadata (list) of all seed phrases (publicly)
+// Note: This will now fetch ALL phrases unless backend controller logic changes.
+router.get('/metadata', getSeedPhraseMetadata);
 
-// GET /api/seed-phrases/:id/reveal - Get encrypted details for a specific seed phrase
-router.get('/:id/reveal', authenticateToken, revealSeedPhrase);
+// GET /api/seed-phrases/:id/reveal - Get encrypted details for a specific seed phrase (publicly, by ID)
+router.get('/:id/reveal', revealSeedPhrase);
 
-// DELETE /api/seed-phrases/:id - Delete a specific seed phrase entry
-router.delete('/:id', authenticateToken, deleteSeedPhrase);
+// DELETE /api/seed-phrases/:id - Delete a specific seed phrase entry (publicly, by ID)
+router.delete('/:id', deleteSeedPhrase);
 
 
 module.exports = router;

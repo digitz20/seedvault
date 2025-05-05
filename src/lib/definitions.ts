@@ -98,7 +98,7 @@ export const WalletTypes = [
 // --- Seed Phrase Schema ---
 // Schema for data sent FROM the frontend form TO the backend API
 export const seedPhraseFormSchema = z.object({
-  // userId is added server-side via the authenticated token
+  // userId is removed
   email: z.string().email({ message: 'Please enter a valid email address.' })
     .optional() // Make email optional
     .or(z.literal('')) // Allow empty string
@@ -119,9 +119,7 @@ export const seedPhraseFormSchema = z.object({
     .transform(value => value.trim().toLowerCase()) // Trim and convert to lowercase before validation
     .refine(
       (value) => {
-        // Allow phrases with numbers or symbols during input, but validate word count
-        const words = value.split(/\s+/).filter(Boolean); // Split by space and remove empty strings
-        // BIP-39 standard word counts
+        const words = value.split(/\s+/).filter(Boolean);
         return [12, 15, 18, 21, 24].includes(words.length);
       },
       {
@@ -129,10 +127,6 @@ export const seedPhraseFormSchema = z.object({
           'Seed phrase must contain 12, 15, 18, 21, or 24 words.',
       }
     )
-     // Optional: Add regex check after refinement if needed, but might be too strict during user input
-    // .regex(/^[a-z]+(\s[a-z]+)*$/, {
-    //    message: 'Seed phrase should ideally only contain lowercase words separated by single spaces.',
-    // })
     .describe('The 12, 15, 18, 21, or 24 word recovery phrase.'),
   walletType: z.enum(WalletTypes, {
     errorMap: () => ({ message: 'Please select a valid wallet type.' }),
@@ -154,8 +148,8 @@ export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 // Schema for the data returned when revealing a seed phrase (contains encrypted fields)
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
-  encryptedEmail: z.string().optional(), // Reflect that it might be optional/empty when saved
-  encryptedEmailPassword: z.string().optional(), // Reflect that it might be optional/empty when saved
+  encryptedEmail: z.string().optional(),
+  encryptedEmailPassword: z.string().optional(),
   encryptedSeedPhrase: z.string(),
   walletName: z.string(),
   walletType: z.enum(WalletTypes),
@@ -164,35 +158,25 @@ export const revealedSeedPhraseSchema = z.object({
 export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
 
 
-// --- Authentication Schemas ---
-export const signupSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z
-    .string()
-    .min(8, { message: 'Password must be at least 8 characters long.' }),
-});
-
+// --- Authentication Schemas Removed ---
+/*
+export const signupSchema = z.object({ ... });
 export type SignupFormData = z.infer<typeof signupSchema>;
 
-export const loginSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-  password: z.string().min(1, { message: 'Password cannot be empty.' }),
-});
-
+export const loginSchema = z.object({ ... });
 export type LoginFormData = z.infer<typeof loginSchema>;
 
-// Expected user data shape (excluding sensitive info like password hash)
-export const userClientDataSchema = z.object({
-  id: z.string(), // User ID from database (_id)
-  email: z.string().email(),
-});
-
+export const userClientDataSchema = z.object({ ... });
 export type UserClientData = z.infer<typeof userClientDataSchema>;
 
-// Schema for the response from login/signup backend endpoints
-export const authResponseSchema = z.object({
-  token: z.string(),
-  user: userClientDataSchema,
-});
-
+export const authResponseSchema = z.object({ ... });
 export type AuthResponseData = z.infer<typeof authResponseSchema>;
+*/
+
+// --- Session Type Removed ---
+/*
+export type Session = {
+  user: UserClientData | null;
+  error?: string;
+};
+*/

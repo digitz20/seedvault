@@ -1,161 +1,139 @@
 
 const mongoose = require('mongoose');
 const User = require('../models/User'); // Import User model
-const SeedPhrase = require('../models/SeedPhrase'); // Import SeedPhrase model for cascading deletes
+// Removed SeedPhrase import as cascading deletes are no longer directly tied to user deletion this way
 
-// Note: User creation (Signup) is handled in authController.js
+// Note: User creation (Signup) and login are removed.
+// These functions now lack their original context and may need removal or adaptation.
 
-// --- Get User Profile ---
-// Fetches basic profile information for the logged-in user.
+// --- Get User Profile (Context Lost) ---
+// Needs re-evaluation: What profile to get without a logged-in user?
+// Maybe fetch by ID passed in params, or remove.
 const getUserProfile = async (req, res) => {
-    const userId = req.user.id; // User ID from authenticated request
+    // const userId = req.user.id; // No longer available
+    const userId = req.params.id; // Example: Get ID from URL like /api/users/:id
+     console.warn(`[User Controller] Getting profile requires re-evaluation without auth. Attempting for ID: ${userId}`);
 
-    console.log(`[User Controller] Getting profile for user ID: ${userId}`);
+    if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+         return res.status(400).json({ message: 'Valid User ID parameter is required.' });
+    }
 
     try {
-        // Find user by ID, excluding the password field
-        const user = await User.findById(userId).select('-password'); // Exclude password hash
-
+        const user = await User.findById(userId).select('-password');
         if (!user) {
             console.warn(`[User Controller] User not found for ID: ${userId}`);
-            // 404 Not Found - Should not happen if token is valid, but good practice
             return res.status(404).json({ message: 'User not found.' });
         }
-
         console.log(`[User Controller] Profile retrieved for user: ${user.email}`);
-        // 200 OK status code
         res.status(200).json({
             id: user._id,
             email: user.email,
-            createdAt: user.createdAt, // Include other non-sensitive fields if needed
+            createdAt: user.createdAt,
         });
-
     } catch (error) {
         console.error(`[User Controller GetProfile Error] User ID: ${userId}`, error);
-        // Generic server error
         res.status(500).json({ message: 'Error fetching user profile.' });
     }
 };
 
-// --- Update User Profile ---
-// Allows updating user details (e.g., email - though often discouraged, or adding other fields).
-// Currently only handles email update as an example. Password updates should have a dedicated flow.
+// --- Update User Profile (Context Lost) ---
+// Needs re-evaluation: Which user to update without auth?
+// Maybe update by ID passed in params.
 const updateUserProfile = async (req, res) => {
-    const userId = req.user.id;
-    const { email } = req.body; // Only allow updating specific fields
+    // const userId = req.user.id; // No longer available
+     const userId = req.params.id; // Example: Get ID from URL like /api/users/:id
+    const { email } = req.body;
 
-    console.log(`[User Controller] Attempting profile update for user ID: ${userId}`);
+     console.warn(`[User Controller] Updating profile requires re-evaluation without auth. Attempting for ID: ${userId}`);
 
-    // Validate input: Ensure at least one updatable field is provided
-    if (!email) { // Add checks for other fields if they become updatable
-        return res.status(400).json({ message: 'No update information provided.' });
+     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+         return res.status(400).json({ message: 'Valid User ID parameter is required.' });
     }
-
-    // Validate email format if provided
+    if (!email) {
+        return res.status(400).json({ message: 'No update information provided (e.g., email).' });
+    }
     if (email && !/.+@.+\..+/.test(email)) {
          return res.status(400).json({ message: 'Invalid email format.' });
     }
 
     try {
-        // Find the user
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Check if the new email is already taken by another user
         if (email && email.toLowerCase() !== user.email.toLowerCase()) {
             const existingUser = await User.findOne({ email: email.toLowerCase() });
-            if (existingUser) {
-                return res.status(409).json({ message: 'Email address is already in use.' });
+            // Ensure the found existing user isn't the same user we are updating
+            if (existingUser && existingUser._id.toString() !== userId) {
+                return res.status(409).json({ message: 'Email address is already in use by another account.' });
             }
-            user.email = email.toLowerCase(); // Update email if valid and different
+            user.email = email.toLowerCase();
         }
 
-        // Add logic for other updatable fields here...
-        // Example: user.someOtherField = req.body.someOtherField;
-
-        // Save the updated user document
         const updatedUser = await user.save();
-
         console.log(`[User Controller] Profile updated successfully for user ID: ${userId}`);
-
-        // Return updated user info (excluding password)
-        // 200 OK status code
         res.status(200).json({
             id: updatedUser._id,
             email: updatedUser.email,
             createdAt: updatedUser.createdAt,
-            // Include other updated fields
         });
-
     } catch (error) {
         console.error(`[User Controller UpdateProfile Error] User ID: ${userId}`, error);
-        // Handle validation errors from Mongoose save
         if (error.name === 'ValidationError') {
             const errors = Object.values(error.errors).map(el => el.message);
             return res.status(400).json({ message: 'Validation Error', errors });
         }
-         // Handle duplicate key errors during save (e.g., if email check had a race condition)
         if (error.code === 11000) {
             return res.status(409).json({ message: 'Email address is already in use.' });
         }
-        // Generic server error
         res.status(500).json({ message: 'Error updating user profile.' });
     }
 };
 
-// --- Delete User Account ---
-// Permanently deletes the user and all associated data (like seed phrases).
-// This is a critical operation and should ideally require password re-confirmation.
+// --- Delete User Account (Context Lost) ---
+// Needs re-evaluation: Which user to delete? Use ID from params.
+// Removed cascading delete of SeedPhrases as they are no longer linked by userId.
 const deleteUserAccount = async (req, res) => {
-    const userId = req.user.id;
+    // const userId = req.user.id; // No longer available
+     const userId = req.params.id; // Example: Get ID from URL like /api/users/:id
 
-    // **Security Enhancement:** Ideally, require current password confirmation here
-    // const { currentPassword } = req.body;
-    // if (!currentPassword) return res.status(400).json({ message: 'Current password required for deletion.'});
-    // const user = await User.findById(userId);
-    // if (!user || !(await user.comparePassword(currentPassword))) {
-    //     return res.status(403).json({ message: 'Incorrect password. Account deletion denied.' });
-    // }
+     console.warn(`[User Controller] Deleting account requires re-evaluation without auth. Attempting for ID: ${userId}`);
 
-    console.log(`[User Controller] Attempting account deletion for user ID: ${userId}`);
+     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+         return res.status(400).json({ message: 'Valid User ID parameter is required.' });
+    }
 
-    const session = await mongoose.startSession(); // Use transaction for atomicity
+    // Removed transaction logic as SeedPhrase deletion is decoupled
+    // const session = await mongoose.startSession();
 
     try {
-        session.startTransaction();
+        // Removed transaction start
+        // session.startTransaction();
 
-        // Step 1: Delete all seed phrases associated with the user
-        const deletePhrasesResult = await SeedPhrase.deleteMany({ userId }, { session });
-        console.log(`[User Controller] Deleted ${deletePhrasesResult.deletedCount} seed phrases for user ID: ${userId}`);
+        // Step 1: Delete Seed Phrases - No longer applicable here, must be deleted individually via seedPhraseRoutes
 
-        // Step 2: Delete the user account
-        const deleteUserResult = await User.findByIdAndDelete(userId, { session });
+        // Step 2: Delete the user account by ID
+        const deleteUserResult = await User.findByIdAndDelete(userId);
 
         if (!deleteUserResult) {
-             // This case should be rare if the user was authenticated, but handle it.
-             await session.abortTransaction();
-             session.endSession();
+             // Removed session abort
              console.warn(`[User Controller] User not found during deletion for ID: ${userId}`);
              return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Commit the transaction
-        await session.commitTransaction();
-        session.endSession();
+        // Removed transaction commit and end
+        // await session.commitTransaction();
+        // session.endSession();
 
         console.log(`[User Controller] Account deleted successfully for user ID: ${userId}`);
-
-        // 200 OK status code (or 204 No Content)
-        res.status(200).json({ message: 'User account and associated data deleted successfully.' });
+        res.status(200).json({ message: 'User account deleted successfully.' }); // Removed "and associated data"
 
     } catch (error) {
-        // If anything fails, abort the transaction
-        await session.abortTransaction();
-        session.endSession();
+        // Removed transaction abort and end
+        // await session.abortTransaction();
+        // session.endSession();
         console.error(`[User Controller DeleteAccount Error] User ID: ${userId}`, error);
-        // Generic server error
         res.status(500).json({ message: 'Error deleting user account.' });
     }
 };
@@ -165,5 +143,4 @@ module.exports = {
     getUserProfile,
     updateUserProfile,
     deleteUserAccount,
-    // createUser is implicitly handled by signupUser in authController
 };

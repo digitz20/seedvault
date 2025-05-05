@@ -3,18 +3,14 @@
 require('dotenv').config(); // Load environment variables from .env file
 const PORT = process.env.BACKEND_PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI;
-const JWT_SECRET = process.env.JWT_SECRET; // JWT secret is now primarily used in controllers/middleware
+// Removed JWT_SECRET variable as it's not used directly here anymore
 
 // --- Basic Validations ---
 if (!MONGODB_URI) {
   console.error('FATAL ERROR: MONGODB_URI is not defined in .env file');
   process.exit(1);
 }
-if (!JWT_SECRET) {
-    // Still useful to check here, although auth middleware/controllers also check
-    console.error('FATAL ERROR: JWT_SECRET is not defined in .env file');
-    process.exit(1);
-}
+// Removed JWT_SECRET check
 
 // --- Imports ---
 const express = require('express');
@@ -22,7 +18,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 // Import route handlers
-const authRoutes = require('./routes/authRoutes');
+// const authRoutes = require('./routes/authRoutes'); // Removed authRoutes import
 const userRoutes = require('./routes/userRoutes');
 const seedPhraseRoutes = require('./routes/seedPhraseRoutes');
 // Middleware (optional, e.g., for logging)
@@ -51,9 +47,9 @@ mongoose.connection.on('error', err => {
 
 
 // --- API Routes ---
-app.use('/api/auth', authRoutes); // Mount authentication routes
-app.use('/api/users', userRoutes); // Mount user profile routes (e.g., /api/users/profile)
-app.use('/api/seed-phrases', seedPhraseRoutes); // Mount seed phrase routes
+// app.use('/api/auth', authRoutes); // Removed mounting of authentication routes
+app.use('/api/users', userRoutes); // Mount user profile routes (note: functionality might change without auth)
+app.use('/api/seed-phrases', seedPhraseRoutes); // Mount seed phrase routes (now public)
 
 // --- Root Route (Health Check/Info) ---
 app.get('/', (req, res) => {

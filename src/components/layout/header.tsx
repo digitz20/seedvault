@@ -1,16 +1,14 @@
 
 import Link from 'next/link';
-import { ShieldCheck, LogOut, LayoutDashboard } from 'lucide-react'; // Using ShieldCheck for the logo, removed LogIn, UserPlus
+import { ShieldCheck, PlusCircle } from 'lucide-react'; // Using ShieldCheck for the logo, PlusCircle for save seed link
 import { cn } from '@/lib/utils';
-import type { Session } from '@/lib/auth/utils'; // Import Session type
+// Removed Session type import
 import { Button } from '@/components/ui/button';
-import { handleSignOut } from '@/lib/auth/actions'; // Import server action for signout
+// Removed handleSignOut import
 
-interface HeaderProps {
-  session: Session | null; // Accept session status
-}
+// Removed HeaderProps interface and session prop
 
-export default function Header({ session }: HeaderProps) {
+export default function Header() {
   return (
     <header className={cn(
       "sticky top-0 z-50 w-full",
@@ -29,32 +27,18 @@ export default function Header({ session }: HeaderProps) {
 
         {/* Navigation Links */}
         <nav className="ml-auto flex items-center space-x-4">
-          {session ? (
-            // If logged in, show Dashboard and Logout
-            <>
-              <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
-                 <Link href="/dashboard">
-                   <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
-                 </Link>
-               </Button>
-               {/* Logout Button */}
-               <form action={handleSignOut}>
-                 <Button type="submit" variant="ghost" size="sm" className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
-                   <LogOut className="mr-2 h-4 w-4" /> Logout
-                 </Button>
-               </form>
-            </>
-          ) : (
-            // If not logged in, no explicit Login/Signup buttons shown here.
-            // Users are directed via the 'Continue' button on homepage or middleware redirects.
-            // Optionally, add a generic "Get Started" button if needed, which could link to '/save-seed' (and trigger login redirect if not logged in)
-             <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
-                 <Link href="/save-seed">
-                   {/* Using a generic icon or just text */}
-                    Get Started
-                 </Link>
-               </Button>
-          )}
+          {/* Always show "Save Seed" link as there's no login state */}
+          <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
+             <Link href="/save-seed">
+                <PlusCircle className="mr-2 h-4 w-4" /> Save Seed Phrase
+             </Link>
+          </Button>
+           {/* Optional: Link to the dashboard (though its functionality without auth is limited) */}
+           <Button variant="ghost" size="sm" asChild className="text-accent-foreground hover:bg-accent/80 hover:text-accent-foreground">
+             <Link href="/dashboard">
+               {/* <LayoutDashboard className="mr-2 h-4 w-4" /> */} Dashboard
+             </Link>
+           </Button>
         </nav>
       </div>
     </header>

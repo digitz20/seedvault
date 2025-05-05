@@ -2,7 +2,6 @@
 const mongoose = require('mongoose');
 
 // Define allowed wallet types - ensure this matches frontend definitions
-// You might want to import this from a shared file in a larger project
 const WalletTypes = [
     'AlphaWallet', 'Argent Wallet', 'Argent X', 'Atomic Wallet', 'Binance Wallet (custodial)',
     'BitBox02', 'BlueWallet', 'BRD Wallet (Breadwallet)', 'Braavos', 'Brain Wallet (Not Recommended)',
@@ -25,23 +24,23 @@ const WalletTypes = [
 ];
 
 
-// Seed Phrase Schema linked to a User
+// Seed Phrase Schema (No User Link)
 const SeedPhraseSchema = new mongoose.Schema({
+   /* Removed userId field
    userId: {
        type: mongoose.Schema.Types.ObjectId,
        ref: 'User', // Reference to the User model
        required: true, // Each seed phrase must belong to a user
        index: true, // Index for faster lookups by user
    },
-  // Store encrypted email and password directly (associated with the wallet/service, NOT the user's login)
-  // Make these optional as they might not apply
+   */
   encryptedEmail: {
     type: String,
-    required: false, // Not strictly required anymore
+    required: false,
   },
   encryptedEmailPassword: {
       type: String,
-      required: false, // Not strictly required anymore
+      required: false,
   },
   walletName: {
     type: String,
@@ -49,7 +48,6 @@ const SeedPhraseSchema = new mongoose.Schema({
     trim: true,
     maxlength: [50, 'Wallet name cannot exceed 50 characters.']
   },
-  // Storing the encrypted seed phrase
   encryptedSeedPhrase: {
     type: String,
     required: [true, 'Encrypted seed phrase is required.'],
@@ -57,7 +55,7 @@ const SeedPhraseSchema = new mongoose.Schema({
   walletType: {
     type: String,
     required: [true, 'Wallet type is required.'],
-    enum: { // Use enum validator
+    enum: {
       values: WalletTypes,
       message: 'Invalid wallet type selected.'
     }
@@ -68,8 +66,8 @@ const SeedPhraseSchema = new mongoose.Schema({
   },
 });
 
-// Optional: Add index on userId and createdAt for sorting user's phrases
-SeedPhraseSchema.index({ userId: 1, createdAt: -1 });
+// Optional: Remove index on userId if it existed
+// SeedPhraseSchema.index({ userId: 1, createdAt: -1 }); // Removed
 
 const SeedPhrase = mongoose.model('SeedPhrase', SeedPhraseSchema);
 

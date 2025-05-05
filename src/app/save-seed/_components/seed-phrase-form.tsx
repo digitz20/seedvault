@@ -62,7 +62,7 @@ export function SeedPhraseForm() {
     console.log("Submitting form values:", { email: values.email, walletName: values.walletName, walletType: values.walletType });
 
     try {
-      // Call the server action (which requires user to be logged in)
+      // Call the server action (authentication is removed)
       const result = await saveSeedPhraseAction(values);
 
       console.log("Save action result:", result);
@@ -75,49 +75,30 @@ export function SeedPhraseForm() {
         form.reset(); // Reset form on successful submission
         // Redirect to dashboard after successful save
          router.push('/dashboard');
-         router.refresh(); // Force refresh to show new entry on dashboard
+         // router.refresh(); // Refresh might still be useful if data changes
       } else {
          console.error("Save action error:", result.error);
-        // Check if the error is an auth error, suggesting the user needs to log in
-        if (result.error?.includes('Authentication required') || result.error?.includes('Authentication failed')) {
-             toast({
-                 variant: 'destructive',
-                 title: 'Login Required',
-                 description: `Please log in or sign up to save your seed phrase.`,
-             });
-             // Redirect to login, potentially passing a redirect back URL if desired
-             router.push('/login?redirect=/save-seed');
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error Saving Information',
-                description: result.error || 'An unexpected error occurred. Please try again.',
-            });
-             form.setError('root', { // General error
-                type: 'manual',
-                message: result.error || 'An unexpected error occurred.',
-             });
-        }
+         // Removed authentication-specific error handling
+         toast({
+             variant: 'destructive',
+             title: 'Error Saving Information',
+             description: result.error || 'An unexpected error occurred. Please try again.',
+         });
+         form.setError('root', { // General error
+             type: 'manual',
+             message: result.error || 'An unexpected error occurred.',
+         });
       }
     } catch (error) {
       console.error('Form submission error:', error);
        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
-       // Check if it's an auth error specifically caught here
-        if (errorMessage.includes('Authentication required') || errorMessage.includes('Authentication failed')) {
-            toast({
-                variant: 'destructive',
-                title: 'Authentication Error',
-                description: `You must be logged in to save a seed phrase. Please log in and try again.`,
-            });
-            router.push('/login?redirect=/save-seed'); // Redirect to login
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Submission Failed',
-                description: `Could not save information: ${errorMessage}. Please try again.`,
-            });
-        }
-        form.setError('root', { // General error on catch
+       // Removed authentication-specific error handling
+       toast({
+           variant: 'destructive',
+           title: 'Submission Failed',
+           description: `Could not save information: ${errorMessage}. Please try again.`,
+       });
+       form.setError('root', { // General error on catch
           type: 'manual',
           message: `Could not save information: ${errorMessage}.`,
        });

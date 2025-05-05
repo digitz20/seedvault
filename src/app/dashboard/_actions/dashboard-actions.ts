@@ -6,7 +6,7 @@ import {
     revealedSeedPhraseSchema
 } from '@/lib/definitions';
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitions';
-import { cookies } from 'next/headers';
+// Removed cookies import
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache'; // Import revalidatePath
 
@@ -15,27 +15,20 @@ const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://local
 
 // Action to get seed phrase metadata for the dashboard list
 export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhraseMetadata[]; error?: string }> {
-    const cookieStore = cookies();
-    const token = cookieStore.get('authToken')?.value;
-
-    if (!token) {
-        return { error: 'Authentication required.' };
-    }
+    // Removed token retrieval
 
     try {
         // Updated API endpoint for metadata
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/metadata`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                // Removed Authorization header
             },
             cache: 'no-store', // Ensure fresh data is fetched every time
         });
 
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                 return { error: 'Authentication failed. Please log in again.' };
-            }
+            // Removed specific auth error checks (401/403) as they are less relevant now
             const errorData = await response.json().catch(() => ({ message: `Failed to fetch data (status: ${response.status})` }));
             return { error: errorData.message || `Failed to fetch data (status: ${response.status})` };
         }
@@ -60,14 +53,9 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
 }
 
 // Action to reveal the (still encrypted) details of a specific seed phrase
-// API endpoint remains the same: /api/seed-phrases/:id/reveal
 export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?: RevealedSeedPhraseData; error?: string }> {
-    const cookieStore = cookies();
-    const token = cookieStore.get('authToken')?.value;
+    // Removed token retrieval
 
-    if (!token) {
-        return { error: 'Authentication required.' };
-    }
     if (!phraseId) {
         return { error: 'Phrase ID is required.'}
     }
@@ -76,15 +64,13 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                // Removed Authorization header
             },
             cache: 'no-store',
         });
 
         if (!response.ok) {
-             if (response.status === 401 || response.status === 403) {
-                 return { error: 'Authentication failed or access denied.' };
-             }
+             // Removed specific auth error checks (401/403)
              if (response.status === 404) {
                  return { error: 'Seed phrase not found.' };
              }
@@ -114,14 +100,9 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 
 
 // Action to delete a seed phrase entry
-// API endpoint remains the same: /api/seed-phrases/:id
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
-    const cookieStore = cookies();
-    const token = cookieStore.get('authToken')?.value;
+    // Removed token retrieval
 
-    if (!token) {
-        return { success: false, error: 'Authentication required.' };
-    }
      if (!phraseId) {
         return { success: false, error: 'Phrase ID is required.'}
     }
@@ -130,14 +111,12 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${token}`,
+               // Removed Authorization header
             },
         });
 
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                return { success: false, error: 'Authentication failed or access denied.' };
-            }
+            // Removed specific auth error checks (401/403)
             if (response.status === 404) {
                 return { success: false, error: 'Seed phrase not found.' };
             }

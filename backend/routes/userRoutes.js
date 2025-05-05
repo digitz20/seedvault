@@ -5,21 +5,23 @@ const {
     updateUserProfile,
     deleteUserAccount
 } = require('../controllers/userController');
-const authenticateToken = require('../middleware/authMiddleware'); // Import authentication middleware
+// Removed authenticateToken import
 
 const router = express.Router();
 
-// --- User Profile Routes (Protected) ---
-// All routes in this file require the user to be authenticated
+// --- User Profile Routes (Now Public or Context-less) ---
+// Note: Without user authentication, these routes lose their context.
+// They might need to be adapted or removed depending on requirements.
+// Example: getUserProfile might return generic info or be removed.
 
-// GET /api/users/profile - Get the logged-in user's profile information
-router.get('/profile', authenticateToken, getUserProfile);
+// GET /api/users/profile - Get generic profile info (if needed) or remove
+// router.get('/profile', getUserProfile); // Commented out - needs re-evaluation
 
-// PUT /api/users/profile - Update the logged-in user's profile information
-router.put('/profile', authenticateToken, updateUserProfile);
+// PUT /api/users/profile - Update generic profile info (if needed) or remove
+// router.put('/profile', updateUserProfile); // Commented out - needs re-evaluation
 
-// DELETE /api/users/profile - Delete the logged-in user's account and associated data
-router.delete('/profile', authenticateToken, deleteUserAccount);
+// DELETE /api/users/profile - Delete generic profile info (if needed) or remove
+// router.delete('/profile', deleteUserAccount); // Commented out - needs re-evaluation
 
 
 module.exports = router;

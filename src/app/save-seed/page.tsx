@@ -4,23 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { getUserAuth } from '@/lib/auth/utils'; // Import utility to check auth
-import { redirect } from 'next/navigation';
+// Removed getUserAuth and redirect imports
 
 export default async function SaveSeedPage() {
-   // Protect this page - redirect if not logged in (Middleware should catch this, but good as fallback)
-   const { session } = await getUserAuth();
-   if (!session) {
-     // Redirect to login, adding a message and potentially a redirect URL for after login
-     redirect('/login?message=Please log in or sign up to save a seed phrase.&redirect=/save-seed');
-   }
-
+   // Removed authentication check - page is now public
 
   return (
     <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
        <Button variant="ghost" size="sm" className="absolute left-4 top-4 md:left-8 md:top-8" asChild>
-          {/* Link back to dashboard since user must be logged in to reach here */}
-         <Link href="/dashboard">
+          {/* Link back to dashboard or home */}
+         <Link href="/dashboard"> {/* Or change to href="/" if dashboard isn't useful without auth */}
            <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Dashboard
          </Link>
