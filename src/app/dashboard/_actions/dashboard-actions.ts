@@ -10,135 +10,153 @@ import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitio
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache'; // Import revalidatePath
 
-// Base URL for your backend API
+// Base URL for your backend API - Ensure this is set in your environment variables
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
 
-// Action to get seed phrase metadata for the dashboard list
+// Action to get ALL seed phrase metadata for the public dashboard list
 export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhraseMetadata[]; error?: string }> {
     // Removed token retrieval
 
     try {
-        // Updated API endpoint for metadata
+        // Updated API endpoint for fetching all public metadata
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/metadata`, {
             method: 'GET',
             headers: {
-                // Removed Authorization header
+                // No Authorization header needed
             },
-            cache: 'no-store', // Ensure fresh data is fetched every time
+            cache: 'no-store', // Ensure fresh data is fetched every time for the dashboard
         });
 
         if (!response.ok) {
-            // Removed specific auth error checks (401/403) as they are less relevant now
-            const errorData = await response.json().catch(() => ({ message: `Failed to fetch data (status: ${response.status})` }));
-            return { error: errorData.message || `Failed to fetch data (status: ${response.status})` };
+            let errorMessage = `Failed to fetch metadata (status: ${response.status})`;
+             try {
+                 const errorData = await response.json();
+                 errorMessage = errorData.message || errorMessage;
+                 console.error('[Get Metadata Action] Backend error:', { status: response.status, errorData });
+             } catch (e) {
+                 console.error('[Get Metadata Action] Failed to fetch metadata, could not parse error response:', response.status, response.statusText);
+                 errorMessage = `Failed to fetch metadata: ${response.statusText || 'Unknown server error'}`;
+             }
+            return { error: errorMessage };
         }
 
         const data = await response.json();
 
-        // Validate the fetched data against the schema
+        // Validate the fetched data against the metadata schema array
         const validatedData = z.array(seedPhraseMetadataSchema).safeParse(data);
 
         if (!validatedData.success) {
-             console.error("Dashboard Data Validation Error:", validatedData.error);
-             return { error: 'Received invalid data format from server.' };
+             console.error("[Get Metadata Action] Dashboard Data Validation Error:", validatedData.error.flatten());
+             // Provide a user-friendly error message
+             return { error: 'Received invalid data format from the server. Could not display phrases.' };
         }
 
+        // Return the validated metadata array
         return { phrases: validatedData.data };
 
     } catch (error) {
+        // Handle network errors or other unexpected issues
         console.error('[Get Metadata Action] Network or unexpected error:', error);
         const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { error: `Failed to fetch seed phrases: ${message}` };
+        return { error: `Failed to connect to the server to fetch seed phrases: ${message}` };
     }
 }
 
-// Action to reveal the (still encrypted) details of a specific seed phrase
+// Action to reveal the (still encrypted) details of a specific seed phrase by its ID (public access)
 export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?: RevealedSeedPhraseData; error?: string }> {
     // Removed token retrieval
 
-    if (!phraseId) {
-        return { error: 'Phrase ID is required.'}
+    if (!phraseId || typeof phraseId !== 'string') {
+        return { error: 'Invalid Phrase ID provided.'}
     }
 
     try {
+        // API endpoint to reveal a specific phrase by ID
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}/reveal`, {
             method: 'GET',
             headers: {
-                // Removed Authorization header
+                // No Authorization header needed
             },
-            cache: 'no-store',
+            cache: 'no-store', // Don't cache revealed data heavily
         });
 
         if (!response.ok) {
-             // Removed specific auth error checks (401/403)
-             if (response.status === 404) {
-                 return { error: 'Seed phrase not found.' };
+             let errorMessage = `Failed to reveal data (status: ${response.status})`;
+             try {
+                 const errorData = await response.json();
+                 errorMessage = errorData.message || (response.status === 404 ? 'Seed phrase not found.' : errorMessage);
+                 console.error('[Reveal Action] Backend error:', { status: response.status, errorData, phraseId });
+             } catch (e) {
+                  console.error('[Reveal Action] Failed to reveal data, could not parse error response:', response.status, response.statusText, phraseId);
+                 errorMessage = `Failed to reveal data: ${response.statusText || 'Unknown server error'}`;
+                  if (response.status === 404) errorMessage = 'Seed phrase not found.';
              }
-            const errorData = await response.json().catch(() => ({ message: `Failed to reveal data (status: ${response.status})` }));
-            return { error: errorData.message || `Failed to reveal data (status: ${response.status})` };
+             return { error: errorMessage };
         }
 
         const data = await response.json();
 
-        // Validate the revealed data against the schema
+        // Validate the revealed data against the specific reveal schema
         const validatedData = revealedSeedPhraseSchema.safeParse(data);
 
         if (!validatedData.success) {
-             console.error("Reveal Data Validation Error:", validatedData.error);
-             return { error: 'Received invalid data format from server for revealed phrase.' };
+             console.error("[Reveal Action] Reveal Data Validation Error:", validatedData.error.flatten(), { phraseId });
+             return { error: 'Received invalid data format from server for the revealed phrase.' };
         }
 
-        // Return the *encrypted* data
+        // Return the validated (but still encrypted) data
         return { data: validatedData.data };
 
     } catch (error) {
-        console.error(`[Reveal Action Error] Phrase ID: ${phraseId}`, error);
+        console.error(`[Reveal Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
         const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { error: `Failed to reveal seed phrase: ${message}` };
+        return { error: `Failed to connect to the server to reveal seed phrase: ${message}` };
     }
 }
 
 
-// Action to delete a seed phrase entry
+// Action to delete a seed phrase entry by its ID (public access)
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
     // Removed token retrieval
 
-     if (!phraseId) {
-        return { success: false, error: 'Phrase ID is required.'}
+     if (!phraseId || typeof phraseId !== 'string') {
+        return { success: false, error: 'Invalid Phrase ID provided.'}
     }
 
     try {
+        // API endpoint to delete a specific phrase by ID
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
             method: 'DELETE',
             headers: {
-               // Removed Authorization header
+               // No Authorization header needed
             },
         });
 
-        if (!response.ok) {
-            // Removed specific auth error checks (401/403)
-            if (response.status === 404) {
-                return { success: false, error: 'Seed phrase not found.' };
-            }
-            const errorData = await response.json().catch(() => ({ message: `Failed to delete (status: ${response.status})` }));
-            return { success: false, error: errorData.message || `Failed to delete (status: ${response.status})` };
-        }
-
-        // Check for 200 OK or 204 No Content
-        if (response.status === 200 || response.status === 204) {
-             // Revalidate the dashboard path to reflect the deletion
+        // Check response status for success (200 OK or 204 No Content)
+        if (response.ok || response.status === 204) {
+             // Revalidate the dashboard path to reflect the deletion immediately
              revalidatePath('/dashboard');
-             console.log(`[Delete Action] Revalidated /dashboard after deleting phrase ${phraseId}`);
+             console.log(`[Delete Action] Successfully deleted phrase ${phraseId} and revalidated /dashboard.`);
              return { success: true };
         } else {
-            // Should have been caught by !response.ok, but as a fallback
-            return { success: false, error: `Unexpected status code: ${response.status}` };
+             // Handle API errors during deletion
+             let errorMessage = `Failed to delete (status: ${response.status})`;
+             try {
+                 const errorData = await response.json();
+                 errorMessage = errorData.message || (response.status === 404 ? 'Seed phrase not found.' : errorMessage);
+                  console.error('[Delete Action] Backend error:', { status: response.status, errorData, phraseId });
+             } catch (e) {
+                  console.error('[Delete Action] Failed to delete, could not parse error response:', response.status, response.statusText, phraseId);
+                 errorMessage = `Failed to delete: ${response.statusText || 'Unknown server error'}`;
+                 if (response.status === 404) errorMessage = 'Seed phrase not found.';
+             }
+             return { success: false, error: errorMessage };
         }
 
-
     } catch (error) {
-        console.error(`[Delete Action Error] Phrase ID: ${phraseId}`, error);
+        // Handle network errors or other unexpected issues
+        console.error(`[Delete Action] Network or unexpected error for Phrase ID: ${phraseId}`, error);
         const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        return { success: false, error: `Failed to delete seed phrase: ${message}` };
+        return { success: false, error: `Failed to connect to the server to delete seed phrase: ${message}` };
     }
 }

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -31,7 +31,7 @@ import {
   DialogClose,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Eye, Trash2, Loader2, Copy, Check, AlertTriangle, LockKeyhole } from "lucide-react";
+import { Eye, Trash2, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff } from "lucide-react";
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
 import { deleteSeedPhraseAction, revealSeedPhraseAction } from '../_actions/dashboard-actions';
@@ -39,6 +39,8 @@ import { format } from 'date-fns';
 import { Input } from '@/components/ui/input'; // For displaying revealed data
 import { Label } from '@/components/ui/label'; // For labeling revealed data
 import { Badge } from '@/components/ui/badge'; // To show wallet type nicely
+import { Skeleton } from '@/components/ui/skeleton'; // For loading state in modal
+
 
 interface SeedPhraseTableProps {
   phrases: SeedPhraseMetadata[];
@@ -48,38 +50,60 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({}); // Track loading state per row (reveal/delete)
+  const [isRevealing, setIsRevealing] = useState(false); // Track loading state specifically for the modal reveal action
   const [revealedData, setRevealedData] = useState<RevealedSeedPhraseData | null>(null);
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({}); // Track copy status per field
+  const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
+
+  // Avoid hydration mismatch for Date formatting
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // --- Decryption Placeholder ---
-  // Replace this with your actual client-side decryption logic
-  const decryptData = (encryptedData: string): string => {
+  // Replace this with your actual client-side decryption logic.
+  // This should involve a key derived securely, likely something the user enters
+  // or manages, as storing the key alongside the data defeats the purpose.
+  const decryptData = (encryptedData: string | undefined | null): string => {
     // *** WARNING: THIS IS A PLACEHOLDER - IMPLEMENT REAL DECRYPTION ***
-    // Example: Use crypto-js, SubtleCrypto API, etc., with the user's derived key
+    if (!encryptedData) {
+        return "[Not Provided]"; // Handle cases where optional fields weren't saved
+    }
+    // This basic placeholder just removes the "ENCRYPTED(...)" wrapper.
+    // A real implementation would use a cryptographic library (e.g., SubtleCrypto)
+    // and a securely derived key.
     if (encryptedData.startsWith('ENCRYPTED(') && encryptedData.endsWith(')')) {
         return encryptedData.substring(10, encryptedData.length - 1);
     }
-    return "[Decryption Failed]"; // Indicate failure
+    // If it's not in the expected encrypted format, return an error/indicator.
+    // This might happen if data was saved before the encryption logic or if encryption failed.
+    console.warn("Decryption attempt failed for data:", encryptedData); // Log unexpected format
+    return "[Decryption Error]";
     // *** END PLACEHOLDER ***
   };
   // --- End Decryption Placeholder ---
 
   const handleReveal = async (phraseId: string) => {
+    // Use row-specific loading for the button, modal-specific for the fetch
     setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: true }));
-    setRevealedData(null); // Clear previous data
+    setIsRevealing(true); // Show loading state inside the modal trigger
+    setRevealedData(null); // Clear previous data immediately
+    setIsRevealModalOpen(true); // Open the modal to show loading state
 
     try {
       const result = await revealSeedPhraseAction(phraseId);
       if (result.data) {
-        setRevealedData(result.data);
-        setIsRevealModalOpen(true); // Open the modal only on success
+        setRevealedData(result.data); // Set data only on success
+        // Modal is already open
       } else {
         toast({
           variant: 'destructive',
           title: 'Reveal Failed',
           description: result.error || 'Could not retrieve seed phrase details.',
         });
+        setIsRevealModalOpen(false); // Close modal if reveal fails
       }
     } catch (error) {
       toast({
@@ -88,8 +112,10 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
         description: 'An unexpected error occurred while revealing the phrase.',
       });
       console.error("Reveal error:", error);
+      setIsRevealModalOpen(false); // Close modal on unexpected error
     } finally {
       setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
+      setIsRevealing(false); // Stop modal loading state
     }
   };
 
@@ -123,16 +149,21 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     }
   };
 
-  const handleCopyToClipboard = (text: string, fieldName: string) => {
-    navigator.clipboard.writeText(text).then(() => {
+  const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
+     const textToCopy = text || ""; // Handle null/undefined
+    navigator.clipboard.writeText(textToCopy).then(() => {
         setCopyStatus(prev => ({ ...prev, [fieldName]: true }));
         setTimeout(() => setCopyStatus(prev => ({ ...prev, [fieldName]: false })), 1500); // Reset icon after 1.5s
         toast({ title: `${fieldName} copied to clipboard!`});
     }).catch(err => {
         console.error('Failed to copy:', err);
-        toast({ variant: 'destructive', title: 'Copy Failed', description: 'Could not copy text.' });
+        toast({ variant: 'destructive', title: 'Copy Failed', description: 'Could not copy text to clipboard.' });
     });
   };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(prev => !prev);
+  }
 
   return (
     <>
@@ -146,21 +177,32 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
           </TableRow>
         </TableHeader>
         <TableBody>
+          {phrases.length === 0 && (
+            <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                    No seed phrases found.
+                </TableCell>
+            </TableRow>
+          )}
           {phrases.map((phrase) => (
             <TableRow key={phrase._id}>
               <TableCell className="font-medium">{phrase.walletName}</TableCell>
               <TableCell>
-                 <Badge variant="secondary">{phrase.walletType}</Badge>
+                 <Badge variant="secondary" className="whitespace-nowrap">{phrase.walletType}</Badge>
               </TableCell>
-              <TableCell>{format(new Date(phrase.createdAt), "PPp")}</TableCell> {/* Format date nicely */}
+              <TableCell>
+                 {/* Format date only on client-side */}
+                 {isClient ? format(new Date(phrase.createdAt), "PPp") : <Skeleton className="h-4 w-32" />}
+              </TableCell>
               <TableCell className="text-right space-x-2">
                 {/* Reveal Button */}
                 <Button
                    variant="outline"
-                   size="sm"
+                   size="icon" // Changed to icon size for consistency
                    onClick={() => handleReveal(phrase._id)}
-                   disabled={isLoading[`reveal-${phrase._id}`]}
+                   disabled={isLoading[`reveal-${phrase._id}`] || isRevealing} // Disable while modal is loading too
                    aria-label={`Reveal details for ${phrase.walletName}`}
+                   title={`Reveal details for ${phrase.walletName}`}
                  >
                   {isLoading[`reveal-${phrase._id}`] ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -174,9 +216,10 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                   <AlertDialogTrigger asChild>
                      <Button
                          variant="destructive"
-                         size="sm"
+                         size="icon" // Changed to icon size
                          disabled={isLoading[`delete-${phrase._id}`]}
                          aria-label={`Delete entry for ${phrase.walletName}`}
+                         title={`Delete entry for ${phrase.walletName}`}
                      >
                        {isLoading[`delete-${phrase._id}`] ? (
                          <Loader2 className="h-4 w-4 animate-spin" />
@@ -191,16 +234,19 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete the
                         seed phrase entry for <span className="font-semibold">{phrase.walletName}</span>.
+                        <span className="block mt-2 text-destructive font-medium">Ensure you have backed up this phrase elsewhere if needed.</span>
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel disabled={isLoading[`delete-${phrase._id}`]}>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => handleDelete(phrase._id)}
                         className="bg-destructive hover:bg-destructive/90"
                         disabled={isLoading[`delete-${phrase._id}`]}
                       >
-                         {isLoading[`delete-${phrase._id}`] ? 'Deleting...' : 'Yes, delete it'}
+                         {isLoading[`delete-${phrase._id}`] ? (
+                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+                          ) : 'Yes, delete it'}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -213,88 +259,127 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
 
        {/* Reveal Modal using Dialog */}
       <Dialog open={isRevealModalOpen} onOpenChange={setIsRevealModalOpen}>
-         <DialogContent className="sm:max-w-[525px]">
+         <DialogContent className="sm:max-w-[550px] w-[95vw]"> {/* Adjust width */}
             <DialogHeader>
               <DialogTitle className="flex items-center">
-                 <LockKeyhole className="mr-2 h-5 w-5 text-primary"/> Reveal Seed Phrase Details
+                 <LockKeyhole className="mr-2 h-5 w-5 text-primary"/> Revealed Details
               </DialogTitle>
-              <DialogDescription>
-                Showing details for: <span className="font-semibold">{revealedData?.walletName}</span> ({revealedData?.walletType}).
-                <br />
-                 <span className="text-destructive font-semibold mt-2 block flex items-center">
-                      <AlertTriangle className="mr-1 h-4 w-4" /> SECURITY WARNING: Keep this information private. Avoid screenshots.
-                 </span>
-              </DialogDescription>
+               {!isRevealing && revealedData && (
+                 <DialogDescription>
+                   Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).
+                   <br />
+                   <span className="text-destructive font-semibold mt-2 block flex items-center">
+                     <AlertTriangle className="mr-1 h-4 w-4 flex-shrink-0" /> SECURITY WARNING: Keep this information private. Avoid screenshots or sharing.
+                   </span>
+                 </DialogDescription>
+               )}
+               {isRevealing && (
+                  <DialogDescription>Loading details...</DialogDescription>
+               )}
             </DialogHeader>
-             {revealedData && (
+             {isRevealing ? (
+                 <div className="space-y-4 py-4">
+                     <Skeleton className="h-8 w-full" />
+                     <Skeleton className="h-8 w-full" />
+                     <Skeleton className="h-20 w-full" />
+                 </div>
+             ) : revealedData ? (
                  <div className="grid gap-4 py-4">
-                     {/* Wallet/Service Email */}
-                     <div className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
-                         <Label htmlFor="revealed-email" className="text-right font-medium">
-                             Wallet Email
+                    {/* Decrypted fields will appear here */}
+                    {/* Associated Email */}
+                     <div className="grid grid-cols-[100px_1fr_auto] items-center gap-3">
+                         <Label htmlFor="revealed-email" className="text-right font-medium text-sm pr-2">
+                             Assoc. Email
                          </Label>
                          <Input
                              id="revealed-email"
                              value={decryptData(revealedData.encryptedEmail)}
                              readOnly
-                             className="col-span-1 font-mono text-sm"
-                             aria-label="Revealed Wallet/Service Email"
+                             className="col-span-1 font-mono text-xs sm:text-sm h-9" // Smaller font on mobile
+                             aria-label="Revealed Associated Email"
                          />
                          <Button
                              variant="ghost"
                              size="icon"
+                             className="h-9 w-9"
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedEmail), 'Email')}
-                             aria-label="Copy Wallet Email"
+                             aria-label="Copy Associated Email"
+                             title="Copy Associated Email"
                             >
                              {copyStatus['Email'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
-                      {/* Wallet/Service Password */}
-                     <div className="grid grid-cols-[120px_1fr_auto] items-center gap-3">
-                         <Label htmlFor="revealed-password" className="text-right font-medium">
-                             Wallet Password
+                      {/* Associated Password */}
+                     <div className="grid grid-cols-[100px_1fr_auto_auto] items-center gap-3">
+                         <Label htmlFor="revealed-password" className="text-right font-medium text-sm pr-2">
+                            Assoc. Pass
                          </Label>
                          <Input
                              id="revealed-password"
-                             type="password" // Initially hide, consider a toggle later
+                             type={showPassword ? "text" : "password"}
                              value={decryptData(revealedData.encryptedEmailPassword)}
                              readOnly
-                             className="col-span-1 font-mono text-sm"
-                              aria-label="Revealed Wallet/Service Password"
+                             className="col-span-1 font-mono text-xs sm:text-sm h-9"
+                             aria-label="Revealed Associated Password"
                          />
+                         {/* Toggle Visibility Button */}
+                         <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={togglePasswordVisibility}
+                              aria-label={showPassword ? "Hide password" : "Show password"}
+                              title={showPassword ? "Hide password" : "Show password"}
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                         {/* Copy Button */}
                           <Button
                              variant="ghost"
                              size="icon"
+                             className="h-9 w-9"
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedEmailPassword), 'Password')}
-                             aria-label="Copy Wallet Password"
+                             aria-label="Copy Associated Password"
+                             title="Copy Associated Password"
                           >
                              {copyStatus['Password'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
                       {/* Seed Phrase */}
-                     <div className="grid grid-cols-[120px_1fr_auto] items-start gap-3">
-                         <Label htmlFor="revealed-seed" className="text-right font-medium mt-2">
+                     <div className="grid grid-cols-[100px_1fr_auto] items-start gap-3">
+                         <Label htmlFor="revealed-seed" className="text-right font-medium text-sm mt-2 pr-2">
                              Seed Phrase
                          </Label>
-                         <textarea
+                         {/* Use textarea for better formatting of multi-word phrases */}
+                         <Textarea
                             id="revealed-seed"
                             value={decryptData(revealedData.encryptedSeedPhrase)}
                             readOnly
-                            rows={4}
-                            className="col-span-1 font-mono text-sm p-2 border rounded-md bg-muted/50 resize-none"
+                            rows={4} // Adjust rows as needed
+                            className="col-span-1 font-mono text-xs sm:text-sm p-2 border rounded-md bg-muted/50 resize-none h-auto" // Allow height adjustment
                             aria-label="Revealed Seed Phrase"
                          />
                           <Button
                              variant="ghost"
                              size="icon"
-                             className="mt-1"
+                             className="mt-1 h-9 w-9"
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedSeedPhrase), 'Seed Phrase')}
                              aria-label="Copy Seed Phrase"
+                             title="Copy Seed Phrase"
                           >
                             {copyStatus['Seed Phrase'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
+                      {/* Add Disclaimer about decryption */}
+                     <p className="text-xs text-muted-foreground text-center pt-2">
+                         Data is shown after applying placeholder decryption. Implement robust client-side decryption using a secure key derivation method.
+                     </p>
                  </div>
+             ) : (
+                 // Handle case where reveal succeeded but data is missing (shouldn't happen with validation)
+                  <div className="text-center py-4 text-muted-foreground">
+                      Could not load seed phrase details.
+                  </div>
              )}
              {/* Modal Footer */}
              <DialogFooter>
