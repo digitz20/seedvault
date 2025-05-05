@@ -8,6 +8,7 @@ import {
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitions';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { revalidatePath } from 'next/cache'; // Import revalidatePath
 
 // Base URL for your backend API
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
@@ -22,7 +23,8 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
     }
 
     try {
-        const response = await fetch(`${BACKEND_API_URL}/api/dashboard/seed-phrases`, {
+        // Updated API endpoint for metadata
+        const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/metadata`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -58,6 +60,7 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
 }
 
 // Action to reveal the (still encrypted) details of a specific seed phrase
+// API endpoint remains the same: /api/seed-phrases/:id/reveal
 export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?: RevealedSeedPhraseData; error?: string }> {
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
@@ -111,6 +114,7 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 
 
 // Action to delete a seed phrase entry
+// API endpoint remains the same: /api/seed-phrases/:id
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
     const cookieStore = cookies();
     const token = cookieStore.get('authToken')?.value;
@@ -143,6 +147,9 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
 
         // Check for 200 OK or 204 No Content
         if (response.status === 200 || response.status === 204) {
+             // Revalidate the dashboard path to reflect the deletion
+             revalidatePath('/dashboard');
+             console.log(`[Delete Action] Revalidated /dashboard after deleting phrase ${phraseId}`);
              return { success: true };
         } else {
             // Should have been caught by !response.ok, but as a fallback
