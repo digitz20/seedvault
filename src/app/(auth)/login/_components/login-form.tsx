@@ -69,10 +69,10 @@ export function LoginForm() {
       if (result.success) {
         toast({
           title: 'Login Successful!',
-          description: 'Redirecting to your dashboard...',
+          description: 'Redirecting to save your seed phrase...',
         });
-        // Redirect to dashboard on successful login
-        router.push('/dashboard');
+        // Redirect to save-seed page on successful login
+        router.push('/save-seed'); // <--- CHANGED REDIRECT TARGET
          router.refresh(); // Force refresh to update layout/session state
       } else {
          console.error('Login action error:', result.error);
@@ -85,10 +85,16 @@ export function LoginForm() {
       }
     } catch (error) {
       console.error('Unexpected login form error:', error);
+       let detailedError = 'An unknown error occurred.';
+       if (error instanceof TypeError && error.message.includes('fetch failed')) {
+           detailedError = `Could not connect to the backend server at ${process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001'}. Please ensure it's running and accessible.`;
+       } else if (error instanceof Error) {
+           detailedError = error.message;
+       }
        toast({
            variant: 'destructive',
            title: 'Login Error',
-           description: 'An unexpected error occurred during login. Please try again later.',
+           description: `An unexpected error occurred: ${detailedError}`,
        });
        form.setError('root.serverError', { type: 'catch', message: 'An unexpected error occurred.' });
     } finally {

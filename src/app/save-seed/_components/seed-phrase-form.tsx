@@ -72,11 +72,11 @@ export function SeedPhraseForm() {
       if (result.success) {
         toast({
           title: 'Success!',
-          description: 'Your seed phrase information has been securely saved.',
+          description: 'Your seed phrase information has been securely saved. Redirecting to dashboard...',
         });
         form.reset(); // Reset form fields on successful submission
         // Redirect to the dashboard after successful save
-         router.push('/dashboard');
+         router.push('/dashboard'); // <--- CONFIRMED: This already redirects to dashboard
          // Optionally, trigger a refresh if needed, though revalidatePath should handle it
          // router.refresh();
       } else {
