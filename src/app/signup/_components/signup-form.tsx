@@ -66,7 +66,8 @@ export function SignupForm() {
         router.push('/login');
         form.reset();
       } else {
-        console.error("Signup action error:", result.error);
+        // Removed console.error here as it's an expected outcome (e.g., email exists)
+        // console.error("Signup action error:", result.error);
         toast({
           variant: 'destructive',
           title: 'Signup Failed',
@@ -83,7 +84,7 @@ export function SignupForm() {
          }
       }
     } catch (error) {
-      console.error('Signup form submission error:', error);
+      console.error('Signup form submission error:', error); // Keep this for unexpected errors
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred.';
       toast({
         variant: 'destructive',
