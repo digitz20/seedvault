@@ -273,8 +273,8 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
               </DialogTitle>
                {!isRevealing && revealedData && (
                  <DialogDescription>
-                   Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).
-                   {/* Removed security warning from here */}
+                   {/* Wrap text in span to allow Badge alongside */}
+                   <span>Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).</span>
                  </DialogDescription>
                )}
                {isRevealing && (
@@ -388,3 +388,4 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     </>
   );
 }
+

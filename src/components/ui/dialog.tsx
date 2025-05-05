@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -100,11 +101,13 @@ const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
+  // Changed from Primitive.p to Primitive.div to allow nesting block elements like Badge
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
+    asChild // Use asChild to allow overriding the rendered element if needed later
+  >
+     <div className={cn("text-sm text-muted-foreground", className)} {...props} />
+  </DialogPrimitive.Description>
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
