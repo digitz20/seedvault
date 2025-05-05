@@ -264,6 +264,7 @@ export async function handleLoginAndSave(
         await setSessionCookie(loginToken);
         revalidatePath('/dashboard'); // Revalidate dashboard path to show new data
         console.log('[LoginAndSave Action] Revalidated /dashboard path.');
+        console.log('[LoginAndSave Action] Operation complete. Returning success.'); // Added log
         return { success: true };
     } else {
       // Handle seed phrase saving errors

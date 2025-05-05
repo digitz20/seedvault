@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import * as React from 'react';
@@ -81,6 +80,7 @@ export function LoginAndSaveForm() {
       const result = await handleLoginAndSave(values);
 
       if (result.success) {
+         console.log("[LoginAndSaveForm] Action successful. Navigating to dashboard..."); // Added log
         toast({
           title: 'Success!',
           description: 'Logged in and seed phrase saved. Redirecting to dashboard...',
