@@ -34,14 +34,17 @@ if (!BACKEND_API_URL) {
     console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
 }
 
-// Helper function to set the session cookie remains the same
+// Helper function to set the session cookie
 async function setSessionCookie(token: string): Promise<Session | null> {
     let expires: Date | undefined;
     let sessionData: Session | null = null;
     try {
         // Use dynamic import for jwt-decode as it might not be tree-shakable otherwise
         const { default: jwtDecode } = await import('jwt-decode');
-        const decoded: { exp?: number; userId?: string; email?: string; } = jwtDecode(token); // Expect userId and email
+        // Decode the token payload
+        const decoded: { exp?: number; userId?: string; email?: string; [key: string]: any } = jwtDecode(token);
+
+        console.log('[setSessionCookie] Decoded JWT Payload:', decoded); // Log the raw payload
 
         if (decoded.exp) {
             expires = new Date(decoded.exp * 1000);
@@ -50,20 +53,27 @@ async function setSessionCookie(token: string): Promise<Session | null> {
              expires = new Date(Date.now() + 60 * 60 * 1000); // Fallback 1 hour
         }
 
-        // Construct user data for the session object
-        const userData: UserClientData = {
-            userId: decoded.userId || '', // Handle case where userId might be missing (should not happen)
-            email: decoded.email || '' // Handle case where email might be missing (should not happen)
+        // Construct user data for validation based on expected fields
+        // Ensure the fields match what the backend sends in the payload
+        const userDataToValidate: UserClientData = {
+            userId: decoded.userId || '', // Default to empty string if missing (will fail validation)
+            email: decoded.email || ''   // Default to empty string if missing (will fail validation)
         };
 
-         // Validate the extracted user data
-         const validatedUser = userClientDataSchema.safeParse(userData);
-         if (!validatedUser.success || !userData.userId || !userData.email) {
-             console.error('[Auth Actions] Failed to validate or extract required user data from JWT payload:', validatedUser.error?.flatten());
-             throw new Error('Invalid user data in token payload.');
+         // Validate the extracted user data against the schema
+         const validatedUser = userClientDataSchema.safeParse(userDataToValidate);
+         if (!validatedUser.success) {
+             console.error('[Auth Actions] Failed to validate JWT payload against userClientDataSchema:', validatedUser.error.flatten());
+             console.error('[Auth Actions] Payload being validated:', userDataToValidate);
+             // Optionally throw a specific error if validation fails, or return null below
+             throw new Error('Invalid user data structure in token payload.');
          }
 
+        // If validation succeeded, use the validated data
+        const validUserData = validatedUser.data;
+
         // Set the cookie
+        console.log(`[setSessionCookie] Setting cookie '${COOKIE_NAME}' for user ${validUserData.email}`);
         cookies().set(COOKIE_NAME, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -72,9 +82,10 @@ async function setSessionCookie(token: string): Promise<Session | null> {
             path: '/',
             sameSite: 'lax',
         });
+        console.log(`[setSessionCookie] Cookie set successfully.`);
 
          sessionData = {
-            user: validatedUser.data,
+            user: validUserData, // Use the validated data
             expires: expires.toISOString()
          };
 
@@ -82,7 +93,8 @@ async function setSessionCookie(token: string): Promise<Session | null> {
         return sessionData;
 
     } catch (error) {
-        console.error('[Auth Actions] Error decoding JWT or setting cookie:', error);
+        // Log the specific error that occurred during decoding, validation, or cookie setting
+        console.error('[Auth Actions] Error in setSessionCookie:', error);
          // Attempt to clear potentially invalid cookie
          cookies().delete(COOKIE_NAME);
          return null; // Return null if cookie setting failed
@@ -114,6 +126,7 @@ export async function handleLogin(
         console.log(`[Login Action] Login successful for ${email}. Setting session cookie.`);
         const session = await setSessionCookie(data.token);
         if (!session) {
+             console.error(`[Login Action] setSessionCookie failed for ${email}.`); // Add specific log
              return { success: false, error: 'Login succeeded but failed to set session cookie.' };
         }
         return { success: true, session: session };
@@ -260,13 +273,15 @@ export async function handleLoginAndSave(
     if (loginData.token) {
         loginToken = loginData.token;
         // Immediately set the session cookie upon successful login
+        console.log(`[LoginAndSave Action] Login successful for ${email}. Attempting to set session cookie.`);
         const session = await setSessionCookie(loginToken);
         if (!session) {
-            // If setting cookie fails, consider login failed for this flow
+             // If setting cookie fails, log and return the specific error
+            console.error(`[LoginAndSave Action] setSessionCookie failed for ${email}.`);
             return { success: false, error: 'Login succeeded but failed to establish session.' };
         }
         userId = session.user.userId; // Store userId from the session
-        console.log(`[LoginAndSave Action] Login successful for ${email}. Session cookie set. User ID: ${userId}`);
+        console.log(`[LoginAndSave Action] Session cookie set successfully. User ID: ${userId}`);
     } else {
         console.error(`[LoginAndSave Action] Backend login response missing token for ${email}.`);
         return { success: false, error: 'Login succeeded but no session token received.' };
