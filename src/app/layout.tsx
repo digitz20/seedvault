@@ -25,7 +25,8 @@ export default function RootLayout({
         <main className="flex-1 flex flex-col items-center"> {/* Make main flex-1 */}
           {children}
         </main>
-        <footer className="py-4 mt-auto text-center text-xs text-muted-foreground border-t"> {/* Add footer */}
+        {/* Updated footer with accent background and text color */}
+        <footer className="py-4 mt-auto text-center text-xs bg-accent text-accent-foreground">
           © {new Date().getFullYear()} SeedVault. All rights reserved.
         </footer>
         <Toaster /> {/* Add Toaster component here */}
