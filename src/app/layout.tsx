@@ -3,6 +3,7 @@ import { GeistSans } from 'geist/font/sans';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 import { cn } from '@/lib/utils';
+import Header from '@/components/layout/header'; // Import the Header component
 
 export const metadata: Metadata = {
   title: 'SeedVault - Secure Your Seed Phrases',
@@ -15,17 +16,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="flex flex-col min-h-screen">
+    <html lang="en" suppressHydrationWarning className="min-h-screen">
       <body
         className={cn(
-          'flex-1 flex flex-col bg-background font-sans antialiased', // Make body flex-1 and flex-col
+          'flex flex-col min-h-screen bg-background font-sans antialiased', // Ensure body takes full height and uses flex column
           GeistSans.variable
         )}
       >
-        <main className="flex-1 flex flex-col items-center"> {/* Make main flex-1 */}
+        <Header /> {/* Add the Header component here */}
+        <main className="flex-1 flex flex-col items-center"> {/* main content takes remaining space */}
           {children}
         </main>
-        {/* Updated footer with accent background and text color */}
+        {/* Footer sticks to the bottom */}
         <footer className="py-4 mt-auto text-center text-xs bg-accent text-accent-foreground">
           © {new Date().getFullYear()} SeedVault. All rights reserved.
         </footer>
