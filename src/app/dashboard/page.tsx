@@ -80,7 +80,7 @@ export default function DashboardPage() {
           <CardTitle>Saved Seed Phrases</CardTitle>
           <CardDescription>
              All stored wallet information. Click the eye icon <Eye className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to reveal details,
-             or the trash icon <Trash2 className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to delete an entry from this view. Deleted entries are hidden locally and will not be deleted from the database.
+             or the trash icon <Trash2 className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to delete an entry from this view.
           </CardDescription>
         </CardHeader>
         <CardContent>
