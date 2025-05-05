@@ -7,8 +7,8 @@ import { getSession } from '@/lib/auth/utils'; // Import getSession to check aut
 const protectedRoutes = ['/dashboard', '/save-seed'];
 // Define authentication paths (login, signup)
 const authRoutes = ['/login', '/signup'];
-// Public paths (everyone can access)
-const publicPaths = ['/']; // Add other public paths like /about if needed
+// Public paths (everyone can access, BUT redirect if logged in)
+const publicPaths = ['/']; // Homepage is public, but redirect logged-in users
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -51,11 +51,16 @@ export async function middleware(request: NextRequest) {
      return NextResponse.next();
   }
 
-  // 4. Handle Public Routes (like homepage)
-  // Everyone can access public paths, no specific checks needed here unless you have special cases.
+  // 4. Handle Public Routes (like homepage) - Redirect if logged in
    const isPublicRoute = publicPaths.includes(pathname);
    console.log(`[Middleware] Path ${pathname} is public route: ${isPublicRoute}`); // Log public route check
   if (isPublicRoute) {
+      if (isAuthenticated) {
+         console.log(`[Middleware] Authenticated user accessing public route ${pathname}. Redirecting to dashboard.`);
+         // Redirect authenticated users from the homepage to the dashboard
+         return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+      // If not authenticated, allow access to public route
       console.log(`[Middleware] Allowed access to public route: ${pathname}. Proceeding.`);
       return NextResponse.next();
   }

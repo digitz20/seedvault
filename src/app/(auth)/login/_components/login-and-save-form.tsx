@@ -88,7 +88,7 @@ export function LoginAndSaveForm() {
       console.log("[LoginAndSaveForm] Server action result:", result); // Add log
 
       if (result.success) {
-         console.log("[LoginAndSaveForm] Action successful. Preparing redirection..."); // Added log
+         console.log("[LoginAndSaveForm] Action successful. Preparing redirection to dashboard..."); // Added log
         toast({
           title: 'Success!',
           description: 'Logged in and seed phrase saved. Redirecting to dashboard...',
@@ -109,7 +109,7 @@ export function LoginAndSaveForm() {
          }, 1000); // Delay redirection slightly to show toast
 
       } else {
-         console.error('[Login & Save Form] Action error:', result.error); // Changed log level
+         console.error('[LoginAndSaveForm] Action error:', result.error); // Changed log level
          toast({
            variant: 'destructive',
            title: 'Operation Failed',
