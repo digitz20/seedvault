@@ -15,16 +15,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="flex flex-col min-h-screen">
       <body
         className={cn(
-          'min-h-screen bg-background font-sans antialiased',
+          'flex-1 flex flex-col bg-background font-sans antialiased', // Make body flex-1 and flex-col
           GeistSans.variable
         )}
       >
-        <main className="flex min-h-screen flex-col items-center">
+        <main className="flex-1 flex flex-col items-center"> {/* Make main flex-1 */}
           {children}
         </main>
+        <footer className="py-4 mt-auto text-center text-xs text-muted-foreground border-t"> {/* Add footer */}
+          © {new Date().getFullYear()} SeedVault. All rights reserved.
+        </footer>
         <Toaster /> {/* Add Toaster component here */}
       </body>
     </html>
