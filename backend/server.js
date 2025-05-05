@@ -3,14 +3,17 @@
 require('dotenv').config(); // Load environment variables from .env file
 const PORT = process.env.BACKEND_PORT || 3001;
 const MONGODB_URI = process.env.MONGODB_URI;
-// Removed JWT_SECRET variable as it's not used directly here anymore
+const JWT_SECRET = process.env.JWT_SECRET; // Load JWT Secret
 
 // --- Basic Validations ---
 if (!MONGODB_URI) {
   console.error('FATAL ERROR: MONGODB_URI is not defined in .env file');
   process.exit(1);
 }
-// Removed JWT_SECRET check
+if (!JWT_SECRET) {
+  console.error('FATAL ERROR: JWT_SECRET is not defined in .env file');
+  process.exit(1);
+}
 
 // --- Imports ---
 const express = require('express');
@@ -18,10 +21,11 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 
 // Import route handlers
-// const authRoutes = require('./routes/authRoutes'); // Removed authRoutes import
+const authRoutes = require('./routes/authRoutes'); // Import authentication routes
 const userRoutes = require('./routes/userRoutes');
 const seedPhraseRoutes = require('./routes/seedPhraseRoutes');
-// Middleware (optional, e.g., for logging)
+// Middleware
+const authenticateToken = require('./middleware/authenticateToken'); // Import authentication middleware
 // const requestLogger = require('./middleware/requestLogger'); // Example middleware
 
 // --- Express App Initialization ---
@@ -47,9 +51,17 @@ mongoose.connection.on('error', err => {
 
 
 // --- API Routes ---
-// app.use('/api/auth', authRoutes); // Removed mounting of authentication routes
-app.use('/api/users', userRoutes); // Mount user profile routes (note: functionality might change without auth)
-app.use('/api/seed-phrases', seedPhraseRoutes); // Mount seed phrase routes (now public)
+// Public Authentication Routes (Login/Signup) - No token required here
+app.use('/api/auth', authRoutes);
+
+// Protected User Routes - Apply authenticateToken middleware BEFORE these routes
+// Any request to /api/users/* must have a valid token now
+app.use('/api/users', authenticateToken, userRoutes);
+
+// Protected Seed Phrase Routes - Apply authenticateToken middleware BEFORE these routes
+// Any request to /api/seed-phrases/* must have a valid token now
+app.use('/api/seed-phrases', authenticateToken, seedPhraseRoutes);
+
 
 // --- Root Route (Health Check/Info) ---
 app.get('/', (req, res) => {
@@ -75,7 +87,8 @@ app.use((err, req, res, next) => {
   if (process.env.NODE_ENV === 'production' && statusCode === 500) {
        res.status(500).json({ message: 'Internal Server Error' });
   } else {
-      res.status(statusCode).json({ message });
+      // Send detailed error in development, generic in production for non-500s
+       res.status(statusCode).json({ message: process.env.NODE_ENV === 'production' ? 'An error occurred.' : message });
   }
 });
 

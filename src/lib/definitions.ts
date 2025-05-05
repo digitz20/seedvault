@@ -206,9 +206,9 @@ export const WalletTypes = [
 
 // --- Seed Phrase Schema ---
 // Schema for data sent FROM the frontend form TO the backend API
-// This now represents the public submission structure.
+// This includes the userId which will be added by the server action based on the session.
 export const seedPhraseFormSchema = z.object({
-  // userId is removed
+  // userId is NOT included here; it's added server-side based on auth
   email: z.string().email({ message: 'Please enter a valid email address.' })
     .min(1, { message: 'Associated email cannot be empty.'}) // Make email required
     .describe('The email address associated with the specific wallet or service.'),
@@ -241,12 +241,13 @@ export const seedPhraseFormSchema = z.object({
   }).describe('The type of wallet or service this seed phrase belongs to.'),
 });
 
-// This type represents the data structure used in the frontend form and sent to the backend.
+// Type for data used in the Save Seed Phrase form on the client
 export type SeedPhraseFormData = z.infer<typeof seedPhraseFormSchema>;
 
-// Schema for the metadata returned for the dashboard list (public list)
+// Schema for the metadata returned for the dashboard list (user-specific list)
 export const seedPhraseMetadataSchema = z.object({
   _id: z.string(), // MongoDB ObjectId as string
+  // userId is not returned to the client here
   walletName: z.string(),
   walletType: z.enum(WalletTypes), // Use the expanded enum
   createdAt: z.string().datetime(), // Date as ISO string
@@ -254,9 +255,10 @@ export const seedPhraseMetadataSchema = z.object({
 
 export type SeedPhraseMetadata = z.infer<typeof seedPhraseMetadataSchema>;
 
-// Schema for the data returned when revealing a seed phrase (contains encrypted fields, public access by ID)
+// Schema for the data returned when revealing a seed phrase (user-specific access by ID)
 export const revealedSeedPhraseSchema = z.object({
   _id: z.string(),
+  // userId is not returned
   encryptedEmail: z.string().optional().or(z.literal('')), // Allow empty string from backend if not set
   encryptedEmailPassword: z.string().optional().or(z.literal('')), // Allow empty string
   encryptedSeedPhrase: z.string(), // Should always exist
@@ -266,7 +268,31 @@ export const revealedSeedPhraseSchema = z.object({
 
 export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
 
-// --- Authentication Schemas Removed ---
 
-// --- Session Type Removed ---
+// --- Authentication Schemas (Restored) ---
+export const LoginSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(1, { message: 'Password is required.' }),
+});
+export type LoginFormData = z.infer<typeof LoginSchema>;
 
+export const SignupSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters long.' }),
+});
+export type SignupFormData = z.infer<typeof SignupSchema>;
+
+// Schema representing the user data stored in the JWT / session cookie
+export const userClientDataSchema = z.object({
+  userId: z.string(),
+  email: z.string().email(),
+  // Add other non-sensitive fields if needed in the session
+});
+export type UserClientData = z.infer<typeof userClientDataSchema>;
+
+// --- Session Type (Restored) ---
+// Represents the structure of the decoded JWT payload
+export type Session = {
+  user: UserClientData; // Contains user ID and email
+  expires: string; // ISO timestamp string for expiration
+} | null; // Can be null if no session exists

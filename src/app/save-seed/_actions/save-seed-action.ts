@@ -3,18 +3,35 @@
 
 import { seedPhraseFormSchema } from '@/lib/definitions'; // Use the form-specific schema
 import type { SeedPhraseFormData } from '@/lib/definitions';
-// Removed cookies import
+import { cookies } from 'next/headers'; // Import cookies
 import { revalidatePath } from 'next/cache'; // Import revalidatePath
+import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth
 
 // Base URL for your backend API - Ensure this is set in your environment variables
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001';
+const COOKIE_NAME = 'session'; // Consistent cookie name
 
 export async function saveSeedPhraseAction(
-  formData: SeedPhraseFormData // Use the full form data type again
+  formData: SeedPhraseFormData // Use the form data type
 ): Promise<{ success: boolean; error?: string }> {
 
-  // 1. Authentication Removed
-  // No need to get auth token anymore
+  // 1. Authentication Check
+   let userId: string;
+   let token: string | undefined;
+   try {
+       const user = await verifyAuth(); // Verify session and get user data
+       userId = user.userId;
+       token = cookies().get(COOKIE_NAME)?.value; // Get the token from the cookie
+       if (!token) {
+           throw new Error('Session token not found.');
+       }
+        console.log(`[Save Seed Action] User authenticated: ${user.email} (ID: ${userId})`);
+   } catch (error) {
+       console.error('[Save Seed Action] Authentication failed:', error);
+        const message = error instanceof Error ? error.message : 'Authentication failed.';
+       // It's better to redirect in the page component, but return error here
+       return { success: false, error: 'Authentication required. Please log in again.' };
+   }
 
   // 2. Validate the incoming form data using Zod schema
   const validatedFields = seedPhraseFormSchema.safeParse(formData);
@@ -29,11 +46,11 @@ export async function saveSeedPhraseAction(
     };
   }
 
-  // Use the validated data, which includes transformations (like trim/lowercase for seed phrase)
+  // Use the validated data
   const dataToSave = validatedFields.data;
 
   // Log minimal info for debugging (avoid logging sensitive data)
-   console.log('[Save Seed Action] Sending save request to backend for wallet:', { walletName: dataToSave.walletName, walletType: dataToSave.walletType });
+   console.log(`[Save Seed Action] Sending save request to backend for user: ${userId}, wallet: ${dataToSave.walletName}`);
 
   // 3. Call the backend API to save the information
   try {
@@ -42,45 +59,40 @@ export async function saveSeedPhraseAction(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Removed Authorization header
+        // Add Authorization header with the JWT token
+        'Authorization': `Bearer ${token}`,
       },
-      // Send the validated and potentially transformed data
+      // Send the validated data (backend will associate with the userId from the token)
       body: JSON.stringify(dataToSave),
     });
 
     // Check if the request was successful (e.g., 201 Created)
     if (response.ok) { // Status codes 200-299 are considered ok
-        console.log('[Save Seed Action] Backend save successful.');
+        console.log(`[Save Seed Action] Backend save successful for user: ${userId}.`);
          // Revalidate the dashboard path to show the newly added phrase
          revalidatePath('/dashboard');
          console.log('[Save Seed Action] Revalidated /dashboard path.');
         return { success: true };
     } else {
-      // Handle API errors (e.g., 400 Bad Request, 500 Internal Server Error)
+      // Handle API errors (e.g., 400 Bad Request, 401 Unauthorized, 500)
       let errorMessage = `Failed to save information (status: ${response.status})`;
       try {
           // Attempt to parse error response from backend
           const errorData = await response.json();
-          // Use backend message if available, otherwise keep the status-based message
           errorMessage = errorData.message || errorMessage;
-          // If backend sends specific validation errors (like Mongoose validation)
-          if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-              // Join multiple error messages if they exist
-              errorMessage = errorData.errors.join(' ');
-          } else if (errorData.message) {
-              errorMessage = errorData.message;
-          }
-           console.error('[Save Seed Action] Backend save failed:', { status: response.status, errorData });
+           console.error(`[Save Seed Action] Backend save failed for user ${userId}:`, { status: response.status, errorData });
       } catch (e) {
-          // If parsing the error response fails, use the status text
-           console.error('[Save Seed Action] Backend save failed, could not parse error response:', response.status, response.statusText);
+           console.error(`[Save Seed Action] Backend save failed for user ${userId}, could not parse error response:`, response.status, response.statusText);
           errorMessage = `Failed to save information: ${response.statusText || 'Unknown server error'}`;
+           if (response.status === 401) {
+               errorMessage = 'Authentication failed. Please log in again.';
+           }
       }
       return { success: false, error: errorMessage };
     }
   } catch (error) {
     // Handle network errors or other unexpected issues during fetch
-    console.error('[Save Seed Action] Network or unexpected error calling backend:', error);
+    console.error(`[Save Seed Action] Network or unexpected error calling backend for user ${userId}:`, error);
      const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
     return {
       success: false,

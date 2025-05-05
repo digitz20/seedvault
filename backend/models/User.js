@@ -1,23 +1,21 @@
 
 const mongoose = require('mongoose');
-// Removed bcrypt import as password hashing is no longer needed here
+const bcrypt = require('bcrypt'); // Restore bcrypt import
 
-// User Schema (Simplified)
+// User Schema (Restored Password Handling)
 const UserSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Email is required.'],
-    unique: true, // Still useful if users are created through other means
+    unique: true, // Keep unique constraint
     lowercase: true,
     trim: true,
     match: [/.+@.+\..+/, 'Please enter a valid email address.'],
   },
   password: {
     type: String,
-    // Removed required and minlength validation as password handling is removed
-    // required: [true, 'Password is required.'],
-    // minlength: [8, 'Password must be at least 8 characters long.'],
-    // Consider removing the password field entirely if users are never created with one now
+    required: [true, 'Password is required.'], // Make password required again
+    minlength: [8, 'Password must be at least 8 characters long.'], // Restore minlength validation
   },
   createdAt: {
     type: Date,
@@ -25,32 +23,37 @@ const UserSchema = new mongoose.Schema({
   },
 });
 
-// Removed Pre-save hook to hash password
-/*
+// Restore Pre-save hook to hash password
 UserSchema.pre('save', async function (next) {
   // Only hash the password if it has been modified (or is new)
-  if (!this.isModified('password')) return next();
+  // Also ensure password is not null/undefined before hashing
+  if (!this.isModified('password') || !this.password) return next();
 
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (err) {
+    console.error("Error hashing password:", err); // Log the error
     next(err); // Pass error to the next middleware or error handler
   }
 });
-*/
 
-// Removed Method to compare password for login
-/*
+
+// Restore Method to compare password for login
 UserSchema.methods.comparePassword = async function (candidatePassword) {
   try {
+    // Ensure candidatePassword is a string before comparing
+    if (typeof candidatePassword !== 'string') {
+        return false;
+    }
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (err) {
-    throw new Error(err); // Throw error to be caught by the calling function
+    console.error("Error comparing password:", err); // Log the error
+    throw new Error('Error during password comparison.'); // Throw a generic error
   }
 };
-*/
+
 
 const User = mongoose.model('User', UserSchema);
 

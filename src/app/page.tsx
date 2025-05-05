@@ -2,11 +2,12 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { ShieldCheck, ArrowRight } from 'lucide-react'; // Removed LogIn, UserPlus
-import { getUserAuth } from '@/lib/auth/utils'; // Still useful to check auth state if needed later, but not used for button logic per request
+import { ShieldCheck, LogIn, UserPlus } from 'lucide-react'; // Added LogIn, UserPlus icons
 
-export default async function Home() {
-  // const { session } = await getUserAuth(); // Check if user is logged in - Keeping for potential future use
+// Removed getUserAuth as authentication status isn't needed for button display anymore
+
+export default function Home() {
+  // No need to check session here anymore
 
   return (
     <div className="container flex flex-col items-center justify-center gap-8 px-4 py-16 md:py-24">
@@ -17,17 +18,17 @@ export default async function Home() {
           Welcome to SeedVault
         </h1>
         <p className="mt-4 max-w-xl text-lg text-muted-foreground">
-          Your secure digital safe for storing cryptocurrency seed phrases. Never lose access to your assets again. Click continue to get started.
+          Your secure digital safe for storing cryptocurrency seed phrases. Log in or sign up to get started.
         </p>
       </div>
 
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader>
           <CardTitle className="text-center">
-            Secure Your Phrases
+            Get Started
           </CardTitle>
           <CardDescription className="text-center">
-            Store your seed phrases securely with end-to-end encryption.
+             Log in to access your vault or sign up to create a new secure account.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
@@ -37,10 +38,16 @@ export default async function Home() {
            </div>
         </CardContent>
         <CardFooter className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          {/* Changed to a single "Continue" button linking to /save-seed */}
-          <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
-             <Link href="/save-seed"> {/* Updated href */}
-                Continue <ArrowRight className="ml-2 h-5 w-5" />
+           {/* Login Button */}
+           <Button size="lg" asChild className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto">
+             <Link href="/login">
+               <LogIn className="mr-2 h-5 w-5" /> Login
+             </Link>
+           </Button>
+           {/* Signup Button */}
+           <Button size="lg" variant="secondary" asChild className="w-full sm:w-auto">
+             <Link href="/signup">
+               <UserPlus className="mr-2 h-5 w-5" /> Sign Up
              </Link>
            </Button>
         </CardFooter>
@@ -53,4 +60,3 @@ export default async function Home() {
     </div>
   );
 }
-

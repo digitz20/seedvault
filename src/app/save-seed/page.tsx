@@ -4,10 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-// Removed getUserAuth and redirect imports
+import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth
+import { redirect } from 'next/navigation'; // Import redirect
 
 export default async function SaveSeedPage() {
-   // Removed authentication check - page is now public
+   // Verify authentication - redirect if not logged in
+   try {
+       await verifyAuth();
+       console.log("[Save Seed Page] User authenticated.");
+   } catch (error) {
+        console.warn("[Save Seed Page] User not authenticated. Redirecting to login.");
+       redirect('/login?message=Please log in to save a seed phrase.');
+   }
 
   return (
     <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative"> {/* Added relative positioning */}
@@ -30,10 +38,10 @@ export default async function SaveSeedPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SeedPhraseForm />
+           {/* Pass userId to the form if needed, or rely on action to get it */}
+           <SeedPhraseForm />
         </CardContent>
       </Card>
     </div>
   );
 }
-

@@ -203,16 +203,15 @@ const WalletTypes = [
 ];
 
 
-// Seed Phrase Schema (No User Link)
+// Seed Phrase Schema (Restored User Link)
 const SeedPhraseSchema = new mongoose.Schema({
-   /* Removed userId field
+   // Restore userId field to link to the User model
    userId: {
        type: mongoose.Schema.Types.ObjectId,
        ref: 'User', // Reference to the User model
        required: true, // Each seed phrase must belong to a user
        index: true, // Index for faster lookups by user
    },
-   */
   encryptedEmail: {
     type: String,
     required: false, // Optional email
@@ -252,8 +251,8 @@ const SeedPhraseSchema = new mongoose.Schema({
   },
 });
 
-// Optional: Remove index on userId if it existed
-// SeedPhraseSchema.index({ userId: 1, createdAt: -1 }); // Removed
+// Optional: Restore index including userId
+SeedPhraseSchema.index({ userId: 1, createdAt: -1 });
 
 const SeedPhrase = mongoose.model('SeedPhrase', SeedPhraseSchema);
 

@@ -34,7 +34,8 @@ import {
 import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2 } from "lucide-react";
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
-import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
+// Import delete action and reveal action
+import { revealSeedPhraseAction, deleteSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,14 +47,14 @@ interface SeedPhraseTableProps {
   phrases: SeedPhraseMetadata[];
 }
 
-const LOCAL_STORAGE_REMOVED_KEY = 'seedvault_removed_phrases';
+// Removed LOCAL_STORAGE_REMOVED_KEY as deletion is now handled server-side
 
 export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
-  const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>([]);
-  const [removedPhraseIds, setRemovedPhraseIds] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({});
-  const [isRevealing, setIsRevealing] = useState(false);
+  const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
+  // Removed removedPhraseIds state
+  const [isLoading, setIsLoading] = useState<Record<string, boolean>>({}); // Combined loading state
+  // const [isRevealing, setIsRevealing] = useState(false); // Can use isLoading state instead
   const [revealedData, setRevealedData] = useState<RevealedSeedPhraseData | null>(null);
   const [isRevealModalOpen, setIsRevealModalOpen] = useState(false);
   const [copyStatus, setCopyStatus] = useState<Record<string, boolean>>({});
@@ -61,40 +62,38 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
   const [phraseToDelete, setPhraseToDelete] = useState<SeedPhraseMetadata | null>(null);
   const [isClient, setIsClient] = useState(false);
 
-  // Load removed IDs from localStorage and filter initial phrases on mount (client-side only)
   useEffect(() => {
     setIsClient(true);
-    try {
-      const storedRemovedIds = localStorage.getItem(LOCAL_STORAGE_REMOVED_KEY);
-      const initialRemovedIds = storedRemovedIds ? new Set<string>(JSON.parse(storedRemovedIds)) : new Set<string>();
-      setRemovedPhraseIds(initialRemovedIds);
-      // Filter the initial phrases based on the loaded removed IDs
-      setPhrases(initialPhrases.filter(p => !initialRemovedIds.has(p._id)));
-    } catch (error) {
-        console.error("Error reading removed phrases from localStorage:", error);
-        // If localStorage fails, just show all initial phrases
-        setPhrases(initialPhrases);
-    }
-  }, [initialPhrases]); // Rerun if initialPhrases changes
+    // Update internal state when initialPhrases prop changes (e.g., after add/delete)
+    setPhrases(initialPhrases);
+  }, [initialPhrases]);
 
   // --- Decryption Placeholder ---
+  // IMPORTANT: Replace with actual client-side decryption logic using a derived key
   const decryptData = (encryptedData: string | undefined | null): string => {
     if (!encryptedData) {
         return "[Not Provided]";
     }
+    // Basic "decryption" - REPLACE THIS
     if (encryptedData.startsWith('ENCRYPTED(') && encryptedData.endsWith(')')) {
-        return encryptedData.substring(10, encryptedData.length - 1);
+        // Example: reverse the reversed string from encryption placeholder
+        const reversed = encryptedData.substring(10, encryptedData.length - 1);
+        try {
+             return reversed.split('').reverse().join('');
+        } catch (e) {
+            console.error("Decryption placeholder error:", e);
+            return "[Decryption Error]";
+        }
     }
-    console.warn("Decryption attempt failed for data:", encryptedData);
-    return "[Decryption Error]";
+    console.warn("Decryption format unexpected:", encryptedData);
+    return "[Decryption Format Error]";
   };
   // --- End Decryption Placeholder ---
 
   const handleReveal = async (phraseId: string) => {
     setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: true }));
-    setIsRevealing(true);
     setRevealedData(null);
-    setIsRevealModalOpen(true);
+    setIsRevealModalOpen(true); // Open modal immediately to show loading state inside
 
     try {
       const result = await revealSeedPhraseAction(phraseId);
@@ -106,7 +105,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
           title: 'Reveal Failed',
           description: result.error || 'Could not retrieve seed phrase details.',
         });
-        setIsRevealModalOpen(false);
+        setIsRevealModalOpen(false); // Close modal on error
       }
     } catch (error) {
       toast({
@@ -118,38 +117,40 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
       setIsRevealModalOpen(false);
     } finally {
       setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
-      setIsRevealing(false);
     }
   };
 
-  // Client-side "delete" - removes from view and persists the removal in localStorage
-  const handleLocalDeleteConfirm = (phraseId: string) => {
-     // Update state first for immediate UI feedback
-    setPhrases(prevPhrases => prevPhrases.filter(p => p._id !== phraseId));
-    const newRemovedIds = new Set(removedPhraseIds).add(phraseId);
-    setRemovedPhraseIds(newRemovedIds);
+  // Server-side delete action call
+  const handleServerDeleteConfirm = async (phraseId: string) => {
+     setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
+     setPhraseToDelete(null); // Close confirmation dialog
 
-    // Update localStorage (only on client)
-    if (isClient) {
-        try {
-            localStorage.setItem(LOCAL_STORAGE_REMOVED_KEY, JSON.stringify(Array.from(newRemovedIds)));
-             toast({
-               title: 'Seed phrase deleted successfully', // Updated title
-               description: 'The entry has been deleted successfully.', // Updated description
-             });
-        } catch (error) {
-            console.error("Error writing removed phrases to localStorage:", error);
-             toast({
-                variant: 'destructive',
-                title: 'Error Removing Phrase',
-                description: 'Could not save the removed state locally. The phrase might reappear on refresh.',
-             });
-             // Optionally revert state if saving fails critically? Depends on desired UX.
-             // setPhrases(initialPhrases.filter(p => !removedPhraseIds.has(p._id))); // Revert to previous state
-        }
-    }
-
-    setPhraseToDelete(null); // Close confirmation dialog
+     try {
+       const result = await deleteSeedPhraseAction(phraseId);
+       if (result.success) {
+          toast({
+            title: 'Deleted Successfully',
+            description: 'The seed phrase entry has been permanently deleted.',
+          });
+          // Revalidation happens in the action, the parent page will refetch and update props
+          // No need to manually filter state here if props update correctly
+       } else {
+          toast({
+            variant: 'destructive',
+            title: 'Deletion Failed',
+            description: result.error || 'Could not delete the seed phrase entry.',
+          });
+       }
+     } catch (error) {
+        toast({
+           variant: 'destructive',
+           title: 'Error',
+           description: 'An unexpected error occurred during deletion.',
+        });
+       console.error("Delete error:", error);
+     } finally {
+       setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: false }));
+     }
   };
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
@@ -180,22 +181,29 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
           </TableRow>
         </TableHeader>
         <TableBody>
-          {phrases.length === 0 && isClient && ( // Only show "No phrases" after client-side check
+          {phrases.length === 0 && isClient && ( // Show "No phrases" only on client after hydration
             <TableRow>
                 <TableCell colSpan={4} className="h-24 text-center">
-                    No seed phrases found or all have been hidden.
+                    No seed phrases found.
                 </TableCell>
             </TableRow>
           )}
-          {!isClient && ( // Show skeleton rows while loading/hydrating
-             [...Array(3)].map((_, i) => (
-               <TableRow key={`skel-${i}`}>
+           {!isClient && initialPhrases.length === 0 && ( // Show skeleton if initial fetch is empty server-side
+               <TableRow>
+                   <TableCell colSpan={4} className="h-24 text-center">
+                       <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
+                   </TableCell>
+               </TableRow>
+           )}
+          {!isClient && initialPhrases.length > 0 && ( // Show skeleton rows while hydrating if initial data exists
+             initialPhrases.map((phrase) => (
+               <TableRow key={`skel-${phrase._id}`}>
                  <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                  <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                  <TableCell><Skeleton className="h-5 w-40" /></TableCell>
                  <TableCell className="text-right space-x-2">
-                   <Skeleton className="h-8 w-8 inline-block" />
-                   <Skeleton className="h-8 w-8 inline-block" />
+                   <Skeleton className="h-8 w-8 inline-block rounded-md" />
+                   <Skeleton className="h-8 w-8 inline-block rounded-md" />
                  </TableCell>
                </TableRow>
              ))
@@ -215,7 +223,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                    variant="outline"
                    size="icon"
                    onClick={() => handleReveal(phrase._id)}
-                   disabled={isLoading[`reveal-${phrase._id}`] || isRevealing}
+                   disabled={isLoading[`reveal-${phrase._id}`] || isLoading[`delete-${phrase._id}`]} // Disable if revealing or deleting
                    aria-label={`Reveal details for ${phrase.walletName}`}
                    title={`Reveal details for ${phrase.walletName}`}
                  >
@@ -226,33 +234,38 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                   )}
                  </Button>
 
-                {/* "Delete" Button (Client-side removal only) */}
-                 <AlertDialog>
+                {/* Delete Button (Server-side delete) */}
+                 <AlertDialog open={phraseToDelete?._id === phrase._id} onOpenChange={(open) => !open && setPhraseToDelete(null)}>
                      <AlertDialogTrigger asChild>
                          <Button
                              variant="destructive"
                              size="icon"
-                             aria-label={`Remove ${phrase.walletName} from view`}
-                             title={`Remove ${phrase.walletName} from view`}
+                             aria-label={`Delete ${phrase.walletName}`}
+                             title={`Delete ${phrase.walletName}`}
                              onClick={() => setPhraseToDelete(phrase)}
+                             disabled={isLoading[`delete-${phrase._id}`] || isLoading[`reveal-${phrase._id}`]} // Disable if deleting or revealing
                          >
-                             <Trash2 className="h-4 w-4" />
+                           {isLoading[`delete-${phrase._id}`] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                           ) : (
+                              <Trash2 className="h-4 w-4" />
+                           )}
                          </Button>
                      </AlertDialogTrigger>
                      <AlertDialogContent>
                          <AlertDialogHeader>
                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                              <AlertDialogDescription>
-                                This will delete your seed phrase and cannot be recovered, are you sure?
+                                This will permanently delete your seed phrase entry &quot;{phraseToDelete?.walletName}&quot;. This action cannot be undone.
                              </AlertDialogDescription>
                          </AlertDialogHeader>
                          <AlertDialogFooter>
                              <AlertDialogCancel onClick={() => setPhraseToDelete(null)}>Cancel</AlertDialogCancel>
                              <AlertDialogAction
-                                 onClick={() => phraseToDelete && handleLocalDeleteConfirm(phraseToDelete._id)}
+                                 onClick={() => phraseToDelete && handleServerDeleteConfirm(phraseToDelete._id)}
                                  className="bg-destructive hover:bg-destructive/90"
                               >
-                                 Delete
+                                 Delete Permanently
                              </AlertDialogAction>
                          </AlertDialogFooter>
                      </AlertDialogContent>
@@ -271,21 +284,22 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
               <DialogTitle className="flex items-center">
                  <LockKeyhole className="mr-2 h-5 w-5 text-primary"/> Revealed Details
               </DialogTitle>
-               {!isRevealing && revealedData && (
-                 <DialogDescription>
-                   {/* Wrap text in span to allow Badge alongside */}
-                   <span>Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).</span>
-                 </DialogDescription>
-               )}
-               {isRevealing && (
+               {isLoading[`reveal-${revealedData?._id}`] || (!revealedData && isRevealModalOpen) ? (
                   <DialogDescription>Loading details...</DialogDescription>
+               ) : revealedData ? (
+                  <DialogDescription>
+                     {/* Wrap text in span to allow Badge alongside */}
+                     <span>Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).</span>
+                   </DialogDescription>
+               ) : (
+                   <DialogDescription>Could not load details.</DialogDescription> // Fallback if loading finishes but no data
                )}
             </DialogHeader>
-             {isRevealing ? (
+             {isLoading[`reveal-${revealedData?._id}`] || (!revealedData && isRevealModalOpen) ? ( // Show skeleton while revealing
                  <div className="space-y-4 py-4">
-                     <Skeleton className="h-8 w-full" />
-                     <Skeleton className="h-8 w-full" />
-                     <Skeleton className="h-20 w-full" />
+                     <div className="flex items-center gap-3"> <Skeleton className="h-5 w-24" /> <Skeleton className="h-9 w-full" /> <Skeleton className="h-9 w-9" /></div>
+                     <div className="flex items-center gap-3"> <Skeleton className="h-5 w-24" /> <Skeleton className="h-9 w-full" /> <Skeleton className="h-9 w-9" /> <Skeleton className="h-9 w-9" /> </div>
+                     <div className="flex items-start gap-3"> <Skeleton className="h-5 w-24 mt-1" /> <Skeleton className="h-20 w-full" /> <Skeleton className="h-9 w-9 mt-1" /></div>
                  </div>
              ) : revealedData ? (
                  <div className="grid gap-4 py-4">
@@ -307,6 +321,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedEmail), 'Email')}
                              aria-label="Copy Associated Email"
                              title="Copy Associated Email"
+                             disabled={decryptData(revealedData.encryptedEmail) === "[Not Provided]" || decryptData(revealedData.encryptedEmail).includes("Error")}
                             >
                              {copyStatus['Email'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
@@ -330,6 +345,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                               onClick={togglePasswordVisibility}
                               aria-label={showPassword ? "Hide password" : "Show password"}
                               title={showPassword ? "Hide password" : "Show password"}
+                              disabled={decryptData(revealedData.encryptedEmailPassword) === "[Not Provided]" || decryptData(revealedData.encryptedEmailPassword).includes("Error")}
                             >
                               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
@@ -340,6 +356,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedEmailPassword), 'Password')}
                              aria-label="Copy Associated Password"
                              title="Copy Associated Password"
+                             disabled={decryptData(revealedData.encryptedEmailPassword) === "[Not Provided]" || decryptData(revealedData.encryptedEmailPassword).includes("Error")}
                           >
                              {copyStatus['Password'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
@@ -363,12 +380,14 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                              onClick={() => handleCopyToClipboard(decryptData(revealedData.encryptedSeedPhrase), 'Seed Phrase')}
                              aria-label="Copy Seed Phrase"
                              title="Copy Seed Phrase"
+                             disabled={decryptData(revealedData.encryptedSeedPhrase).includes("Error")} // Should always have seed phrase unless error
                           >
                             {copyStatus['Seed Phrase'] ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                          </Button>
                      </div>
-                     <p className="text-xs text-muted-foreground text-center pt-2">
-                         Data is shown after applying placeholder decryption. Implement robust client-side decryption using a secure key derivation method.
+                     {/* Update warning about placeholder decryption */}
+                     <p className="text-xs text-muted-foreground text-center pt-2 flex items-center justify-center gap-1">
+                          <AlertTriangle className="h-3 w-3 text-amber-500" /> Data is shown after applying placeholder decryption. Implement robust client-side decryption.
                      </p>
                  </div>
              ) : (
@@ -388,4 +407,3 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     </>
   );
 }
-
