@@ -30,7 +30,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { saveSeedPhraseAction } from '../_actions/save-seed-action';
 import { useState } from 'react';
-import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote } from 'lucide-react'; // Added icons
+import { Loader2, Lock, Mail, KeyRound, WalletMinimal, StickyNote, Ban } from 'lucide-react'; // Added icons, including Ban for Cancel
 import { useRouter } from 'next/navigation'; // Use Next.js navigation
 
 // Use the SeedPhraseFormData type, which includes wallet-specific email/password
@@ -47,8 +47,8 @@ export function SeedPhraseForm() {
   const form = useForm<SeedPhraseFormClientData>({
     resolver: zodResolver(seedPhraseFormSchema), // Use the form schema for validation
     defaultValues: {
-      email: '', // Wallet/Service Email (optional)
-      emailPassword: '', // Wallet/Service Password (optional)
+      email: '', // Wallet/Service Email (now required)
+      emailPassword: '', // Wallet/Service Password (now required)
       walletName: '',
       seedPhrase: '',
       walletType: undefined, // Ensure a wallet type must be selected
@@ -110,6 +110,10 @@ export function SeedPhraseForm() {
     }
   }
 
+  const handleCancel = () => {
+      router.push('/dashboard'); // Navigate back to the dashboard
+  }
+
 
   return (
     <Form {...form}>
@@ -121,33 +125,33 @@ export function SeedPhraseForm() {
             </FormMessage>
         )}
 
-         {/* Wallet/Service Email Address (Optional) */}
+         {/* Wallet/Service Email Address (Required) */}
          <FormField
            control={form.control}
            name="email"
            render={({ field }) => (
              <FormItem>
-               <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-muted-foreground" /> Associated Email (Optional)</FormLabel>
+               <FormLabel className="flex items-center"><Mail className="mr-2 h-4 w-4 text-muted-foreground" /> Associated Email *</FormLabel>
                <FormControl>
-                 <Input type="email" placeholder="Email linked to this wallet/service" {...field} autoComplete="off" />
+                 <Input type="email" placeholder="Email linked to this wallet/service" {...field} autoComplete="off" required />
                </FormControl>
-               <FormDescription>The email address used for this specific wallet or service account (if any).</FormDescription>
+               <FormDescription>The email address used for this specific wallet or service account.</FormDescription>
                <FormMessage /> {/* Displays Zod validation errors for this field */}
              </FormItem>
            )}
          />
 
-         {/* Wallet/Service Password (Optional) */}
+         {/* Wallet/Service Password (Required) */}
          <FormField
            control={form.control}
            name="emailPassword"
            render={({ field }) => (
              <FormItem>
-               <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4 text-muted-foreground" /> Associated Password (Optional)</FormLabel>
+               <FormLabel className="flex items-center"><KeyRound className="mr-2 h-4 w-4 text-muted-foreground" /> Associated Password *</FormLabel>
                <FormControl>
-                 <Input type="password" placeholder="Password for this wallet/service" {...field} autoComplete="new-password" />
+                 <Input type="password" placeholder="Password for this wallet/service" {...field} autoComplete="new-password" required />
                </FormControl>
-               <FormDescription>The password used for this specific wallet or service account (if any). This is NOT your SeedVault login password.</FormDescription>
+               <FormDescription>The password used for this specific wallet or service account. This is NOT your SeedVault login password.</FormDescription>
                <FormMessage />
              </FormItem>
            )}
@@ -220,18 +224,30 @@ export function SeedPhraseForm() {
           )}
         />
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-             <>
-               <Lock className="mr-2 h-4 w-4" /> Securely Save Information
-             </>
-          )}
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-3">
+           <Button
+               type="button"
+               variant="outline"
+               className="w-full sm:w-auto"
+               onClick={handleCancel}
+               disabled={isSubmitting}
+             >
+               <Ban className="mr-2 h-4 w-4" />
+               Cancel
+             </Button>
+           <Button type="submit" className="w-full sm:flex-1" disabled={isSubmitting}>
+             {isSubmitting ? (
+               <>
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                 Saving...
+               </>
+             ) : (
+                <>
+                  <Lock className="mr-2 h-4 w-4" /> Securely Save Information
+                </>
+             )}
+           </Button>
+         </div>
       </form>
     </Form>
   );

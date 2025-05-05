@@ -134,15 +134,15 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
         try {
             localStorage.setItem(LOCAL_STORAGE_REMOVED_KEY, JSON.stringify(Array.from(newRemovedIds)));
              toast({
-               title: 'Removed from View',
-               description: 'The seed phrase entry has been hidden. It has not been deleted from the database.',
+               title: 'Seed phrase deleted successfully', // Updated title
+               description: 'The entry has been removed from your view. It has not been deleted from the database.', // Updated description
              });
         } catch (error) {
             console.error("Error writing removed phrases to localStorage:", error);
              toast({
                 variant: 'destructive',
-                title: 'Error Hiding Phrase',
-                description: 'Could not save the hidden state locally. The phrase might reappear on refresh.',
+                title: 'Error Removing Phrase',
+                description: 'Could not save the removed state locally. The phrase might reappear on refresh.',
              });
              // Optionally revert state if saving fails critically? Depends on desired UX.
              // setPhrases(initialPhrases.filter(p => !removedPhraseIds.has(p._id))); // Revert to previous state
@@ -252,7 +252,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                                  onClick={() => phraseToDelete && handleLocalDeleteConfirm(phraseToDelete._id)}
                                  className="bg-destructive hover:bg-destructive/90"
                               >
-                                 Remove from View
+                                 Delete
                              </AlertDialogAction>
                          </AlertDialogFooter>
                      </AlertDialogContent>

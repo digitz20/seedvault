@@ -101,14 +101,12 @@ export const WalletTypes = [
 export const seedPhraseFormSchema = z.object({
   // userId is removed
   email: z.string().email({ message: 'Please enter a valid email address.' })
-    .optional() // Make email optional
-    .or(z.literal('')) // Allow empty string
-    .describe('The email address associated with the specific wallet or service, if applicable.'),
+    .min(1, { message: 'Associated email cannot be empty.'}) // Make email required
+    .describe('The email address associated with the specific wallet or service.'),
   emailPassword: z.string()
+    .min(1, { message: 'Associated password cannot be empty.'}) // Make password required
     .max(100, { message: 'Password seems too long.'}) // Basic check
-    .optional() // Make password optional
-    .or(z.literal('')) // Allow empty string
-    .describe('The password associated with the specific wallet or service, if applicable. Not your SeedVault login password.'),
+    .describe('The password associated with the specific wallet or service. Not your SeedVault login password.'),
   walletName: z
     .string()
     .min(1, { message: 'Wallet name cannot be empty.' })
@@ -162,3 +160,4 @@ export type RevealedSeedPhraseData = z.infer<typeof revealedSeedPhraseSchema>;
 // --- Authentication Schemas Removed ---
 
 // --- Session Type Removed ---
+
