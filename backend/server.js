@@ -1,7 +1,7 @@
 
 // --- Environment Variables ---
 require('dotenv').config(); // Load environment variables from .env file
-const PORT = process.env.BACKEND_PORT || 3001;
+const PORT = process.env.BACKEND_PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
 const JWT_SECRET = process.env.JWT_SECRET; // Load JWT Secret
 
