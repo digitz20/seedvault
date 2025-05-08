@@ -9,8 +9,14 @@ import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitio
 import { cookies } from 'next/headers'; // Import cookies
 import { z } from 'zod';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { revalidatePath } from 'next/cache'; // Import revalidatePath for delete
 import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth for rigorous check
+=======
+import { revalidatePath } from 'next/cache'; // Keep revalidatePath if needed elsewhere
+// Import verifyAuth for rigorous check (verifyAuth only, getSession is internal)
+import { verifyAuth } from '@/lib/auth/utils';
+>>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
 =======
 import { revalidatePath } from 'next/cache'; // Keep revalidatePath if needed elsewhere
 // Import verifyAuth for rigorous check (verifyAuth only, getSession is internal)
@@ -206,6 +212,7 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 // Action to "delete" a seed phrase entry by its ID (only updates frontend state)
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
      let userId: string;
@@ -261,6 +268,12 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         return { success: false, error: `Failed to delete seed phrase: ${detailedError}` };
     }
     */
+=======
+// REMOVED deleteSeedPhraseAction as deletion is handled locally in the UI
+/*
+export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
+     // ... implementation removed ...
+>>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
 =======
 // REMOVED deleteSeedPhraseAction as deletion is handled locally in the UI
 /*
