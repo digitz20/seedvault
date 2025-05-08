@@ -1,31 +1,27 @@
-
-import React, { Suspense, lazy } from 'react'; // Import lazy
+import React, { Suspense } from 'react'; // Removed lazy import
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, AlertTriangle, Eye, Trash2, LogOut } from "lucide-react"; // Remove Loader2
+import { PlusCircle, AlertTriangle, Eye, Trash2, LogOut } from "lucide-react"; // Removed Loader2
 import Link from "next/link";
 import { getSeedPhraseMetadataAction } from "./_actions/dashboard-actions"; // Import the metadata action
 import type { SeedPhraseMetadata } from '@/lib/definitions';
-import { getUserAuth } from '@/lib/auth/utils'; // Import getUserAuth
+import { getUserAuth } from '@/lib/auth/utils'; // Import getUserAuth (assuming it exists after previous fixes)
 import { redirect } from 'next/navigation'; // Import redirect
 
-// Lazy load SeedPhraseTable and DeleteAccountButton
-const SeedPhraseTable = lazy(() => import("./_components/seed-phrase-table").then(module => ({ default: module.SeedPhraseTable })));
-const DeleteAccountButton = lazy(() => import('./_components/delete-account-button').then(module => ({ default: module.DeleteAccountButton })));
+// Import SeedPhraseTable directly (no lazy loading for now)
+import SeedPhraseTable from "./_components/seed-phrase-table";
+// Import DeleteAccountButton directly
+import DeleteAccountButton from './_components/delete-account-button';
+
 
 // Force dynamic rendering for this page because it depends on user session data
 export const dynamic = 'force-dynamic';
 
 // Component to fetch and display data, handling loading and errors
 async function SeedPhraseList() {
-  // Authentication should be verified by the page component before this renders
-  // The action implicitly uses the user's token from the cookie
-  console.time("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
   const { phrases, error } = await getSeedPhraseMetadataAction();
-  console.timeEnd("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
 
   if (error) {
-    // Check for specific auth error message to redirect (although page-level check is primary)
     if (error.includes('Authentication required') || error.includes('Authentication failed')) {
          console.warn("[Dashboard - SeedPhraseList] Auth error during data fetch. Redirecting (redundant).");
          redirect('/login?message=Session expired or invalid. Please log in again.');
@@ -92,7 +88,6 @@ export default async function DashboardPage() {
    let userEmail: string | null = null;
 
    // Verify authentication using getUserAuth which returns the session or null
-   // This is the primary authentication check for the page.
    const { session } = await getUserAuth();
 
    if (!session?.user) {
@@ -111,7 +106,7 @@ export default async function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">SeedVault Dashboard</h1>
            {userEmail && (
               <p className="text-muted-foreground mt-1">
-                Welcome, <span className="font-medium">{userEmail}</span>. View your securely stored entries.
+                Welcome, <span className="font-medium">{userEmail}</span>. View your saved seed phrases.
               </p>
            )}
         </div>
@@ -138,7 +133,7 @@ export default async function DashboardPage() {
       </Card>
 
         <div className="mt-8 flex flex-col items-center gap-4">
-           {/* Delete account button handles its own auth */}
+           {/* Delete account button - needs update to work without auth */}
            <Suspense fallback={<Button disabled>Loading...</Button>}>
                <DeleteAccountButton />
            </Suspense>
@@ -150,4 +145,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

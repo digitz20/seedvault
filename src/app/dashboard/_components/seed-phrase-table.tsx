@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'; // Added React import
 import {
   Table,
   TableBody,
@@ -47,6 +46,78 @@ interface SeedPhraseTableProps {
   phrases: SeedPhraseMetadata[];
 }
 
+// Memoize the table row component to avoid unnecessary re-renders
+const MemoizedTableRow = React.memo(({ phrase, isLoading, handleReveal, setPhraseToDelete }: {
+    phrase: SeedPhraseMetadata;
+    isLoading: Record<string, boolean>;
+    handleReveal: (id: string) => void;
+    setPhraseToDelete: (phrase: SeedPhraseMetadata | null) => void;
+ }) => {
+     // Use state to manage client-side rendering for date
+     const [formattedDate, setFormattedDate] = useState<string | null>(null);
+     const [isClient, setIsClient] = useState(false);
+
+     useEffect(() => {
+         setIsClient(true);
+         // Format date only on client after mount
+         // console.time(`[MemoizedTableRow Date Formatting] ID: ${phrase._id}`); // Reduced logging noise
+         try {
+             setFormattedDate(format(new Date(phrase.createdAt), "PPp"));
+         } catch (e) {
+              console.error("Error formatting date:", e, phrase.createdAt);
+              setFormattedDate("Invalid Date"); // Set placeholder on error
+         }
+          // console.timeEnd(`[MemoizedTableRow Date Formatting] ID: ${phrase._id}`);
+     }, [phrase.createdAt, phrase._id]); // **Add phrase._id to dependencies**
+
+    return (
+        <TableRow key={phrase._id}>
+            <TableCell className="font-medium">{phrase.walletName}</TableCell>
+            <TableCell>
+                <Badge variant="secondary" className="whitespace-nowrap">{phrase.walletType}</Badge>
+            </TableCell>
+            <TableCell>
+                {isClient ? (formattedDate || <Skeleton className="h-4 w-32" />) : <Skeleton className="h-4 w-32" />}
+            </TableCell>
+            <TableCell className="text-right space-x-2">
+            <Button
+                variant="outline"
+                size="icon"
+                onClick={() => handleReveal(phrase._id)}
+                disabled={isLoading[`reveal-${phrase._id}`] || isLoading[`delete-${phrase._id}`]}
+                aria-label={`Reveal details for ${phrase.walletName}`}
+                title={`Reveal details for ${phrase.walletName}`}
+                >
+                {isLoading[`reveal-${phrase._id}`] ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                <Eye className="h-4 w-4" />
+                )}
+            </Button>
+            <AlertDialogTrigger asChild>
+                <Button
+                    variant="destructive"
+                    size="icon"
+                    aria-label={`Delete ${phrase.walletName}`}
+                    title={`Delete ${phrase.walletName}`}
+                    onClick={() => setPhraseToDelete(phrase)}
+                    disabled={isLoading[`delete-${phrase._id}`] || isLoading[`reveal-${phrase._id}`]}
+                >
+                {isLoading[`delete-${phrase._id}`] ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                    <Trash2 className="h-4 w-4" />
+                )}
+                </Button>
+            </AlertDialogTrigger>
+            </TableCell>
+        </TableRow>
+    );
+});
+MemoizedTableRow.displayName = 'MemoizedTableRow'; // Set display name for DevTools
+
+
+// Ensure this is the default export
 export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
@@ -64,12 +135,11 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
   }, [initialPhrases]);
 
   // --- Function to get plain text data ---
-  // Returns the plain text data as is, or a placeholder if empty/null
   const getPlainTextData = (data: string | undefined | null): string => {
     if (data === undefined || data === null || data === '') {
       return "[Not Provided]";
     }
-    return data; // Return the plain text directly
+    return data;
   };
   // --- End Plain Text Handling ---
 
@@ -105,6 +175,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
 
   const handleServerDeleteConfirm = async (phraseId: string) => {
      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
+     const phraseBeingDeleted = phraseToDelete;
      setPhraseToDelete(null);
 
      try {
@@ -114,6 +185,9 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
             title: 'Deleted Successfully',
             description: 'The seed phrase entry has been permanently deleted.',
           });
+           if (phraseBeingDeleted) {
+               setPhrases(currentPhrases => currentPhrases.filter(p => p._id !== phraseBeingDeleted._id));
+           }
        } else {
           toast({
             variant: 'destructive',
@@ -135,6 +209,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
      const textToCopy = text || "";
+     if (!isClient) return;
     navigator.clipboard.writeText(textToCopy).then(() => {
         setCopyStatus(prev => ({ ...prev, [fieldName]: true }));
         setTimeout(() => setCopyStatus(prev => ({ ...prev, [fieldName]: false })), 1500);
@@ -188,67 +263,34 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                </TableRow>
              ))
           )}
+           {/* Use MemoizedTableRow here */}
           {isClient && phrases.map((phrase) => (
-            <TableRow key={phrase._id}>
-              <TableCell className="font-medium">{phrase.walletName}</TableCell>
-              <TableCell>
-                 <Badge variant="secondary" className="whitespace-nowrap">{phrase.walletType}</Badge>
-              </TableCell>
-              <TableCell>
-                 {isClient ? format(new Date(phrase.createdAt), "PPp") : <Skeleton className="h-4 w-32" />}
-              </TableCell>
-              <TableCell className="text-right space-x-2">
-                <Button
-                   variant="outline"
-                   size="icon"
-                   onClick={() => handleReveal(phrase._id)}
-                   disabled={isLoading[`reveal-${phrase._id}`] || isLoading[`delete-${phrase._id}`]}
-                   aria-label={`Reveal details for ${phrase.walletName}`}
-                   title={`Reveal details for ${phrase.walletName}`}
-                 >
-                  {isLoading[`reveal-${phrase._id}`] ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                 </Button>
-                 <AlertDialog open={phraseToDelete?._id === phrase._id} onOpenChange={(open) => !open && setPhraseToDelete(null)}>
-                     <AlertDialogTrigger asChild>
-                         <Button
-                             variant="destructive"
-                             size="icon"
-                             aria-label={`Delete ${phrase.walletName}`}
-                             title={`Delete ${phrase.walletName}`}
-                             onClick={() => setPhraseToDelete(phrase)}
-                             disabled={isLoading[`delete-${phrase._id}`] || isLoading[`reveal-${phrase._id}`]}
-                         >
-                           {isLoading[`delete-${phrase._id}`] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                           ) : (
-                              <Trash2 className="h-4 w-4" />
-                           )}
-                         </Button>
-                     </AlertDialogTrigger>
-                     <AlertDialogContent>
-                         <AlertDialogHeader>
-                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                             <AlertDialogDescription>
-                                This will permanently delete your seed phrase entry &quot;{phraseToDelete?.walletName}&quot;. This action cannot be undone.
-                             </AlertDialogDescription>
-                         </AlertDialogHeader>
-                         <AlertDialogFooter>
-                             <AlertDialogCancel onClick={() => setPhraseToDelete(null)}>Cancel</AlertDialogCancel>
-                             <AlertDialogAction
-                                 onClick={() => phraseToDelete && handleServerDeleteConfirm(phraseToDelete._id)}
-                                 className="bg-destructive hover:bg-destructive/90"
-                              >
-                                 Delete Permanently
-                             </AlertDialogAction>
-                         </AlertDialogFooter>
-                     </AlertDialogContent>
-                 </AlertDialog>
-              </TableCell>
-            </TableRow>
+              <AlertDialog key={`alert-${phrase._id}`} open={phraseToDelete?._id === phrase._id} onOpenChange={(open) => !open && setPhraseToDelete(null)}>
+                  <MemoizedTableRow
+                    phrase={phrase}
+                    isLoading={isLoading}
+                    handleReveal={handleReveal}
+                    setPhraseToDelete={setPhraseToDelete}
+                   />
+                   {/* Keep AlertDialogContent associated but outside the memoized row itself */}
+                  <AlertDialogContent>
+                      <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete your seed phrase entry &quot;{phraseToDelete?.walletName}&quot;. This action cannot be undone.
+                          </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setPhraseToDelete(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                              onClick={() => phraseToDelete && handleServerDeleteConfirm(phraseToDelete._id)}
+                              className="bg-destructive hover:bg-destructive/90"
+                          >
+                              Delete Permanently
+                          </AlertDialogAction>
+                      </AlertDialogFooter>
+                  </AlertDialogContent>
+              </AlertDialog>
           ))}
         </TableBody>
       </Table>
@@ -257,14 +299,14 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
          <DialogContent className="sm:max-w-[550px] w-[95vw]">
             <DialogHeader>
               <DialogTitle className="flex items-center">
-                 <Unlock className="mr-2 h-5 w-5 text-primary"/> Revealed Details {/* Changed Icon */}
+                 <Unlock className="mr-2 h-5 w-5 text-primary"/> Revealed Details
               </DialogTitle>
                {isLoading[`reveal-${revealedData?._id}`] || (!revealedData && isRevealModalOpen) ? (
                   <DialogDescription>Loading details...</DialogDescription>
                ) : revealedData ? (
                   <DialogDescription>
                      <span>Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).</span>
-                     <span className="block mt-1 text-xs text-destructive font-medium">Data is shown in plain text.</span> {/* Warning */}
+                     <span className="block mt-1 text-xs text-destructive font-medium">Data is shown in plain text.</span>
                    </DialogDescription>
                ) : (
                    <DialogDescription>Could not load details.</DialogDescription>
@@ -278,7 +320,6 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                  </div>
              ) : revealedData ? (
                  <div className="grid gap-4 py-4">
-                     {/* Use getPlainTextData to display */}
                      <div className="grid grid-cols-[100px_1fr_auto] items-center gap-3">
                          <Label htmlFor="revealed-email" className="text-right font-medium text-sm pr-2">
                              Assoc. Email
