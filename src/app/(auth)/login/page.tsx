@@ -1,16 +1,24 @@
 
 import { Suspense } from 'react';
-// Update import to the combined form component
-import { LoginAndSaveForm } from './_components/login-and-save-form';
+import { LoginForm } from './_components/login-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react'; // Added Loader2 for suspense fallback
 
 // Helper component to read search params (needed for Suspense boundary)
 // Kept for potential future use, but the form now handles messages
 function LoginMessages() {
   return null;
+}
+
+// Define a fallback component for Suspense
+function LoginFormLoading() {
+    return (
+        <div className="flex justify-center items-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+    );
 }
 
 export default function LoginPage() {
@@ -23,19 +31,22 @@ export default function LoginPage() {
          </Link>
        </Button>
 
-      <Card className="w-full max-w-lg shadow-xl"> {/* Increased max-width for more fields */}
+      <Card className="w-full max-w-md shadow-xl"> {/* Login form doesn't need extra width */}
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">Log In & Save Seed Phrase</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">SeedVault Login</CardTitle>
           <CardDescription>
-             Log in to your SeedVault account and securely store your first seed phrase in one step.
+             Log in to access your securely stored seed phrases.
+             {/* Suspense boundary for LoginMessages (though currently unused) */}
              <Suspense fallback={null}>
                 <LoginMessages />
              </Suspense>
           </CardDescription>
         </CardHeader>
         <CardContent>
-           {/* Render the combined form */}
-           <LoginAndSaveForm />
+           {/* Wrap LoginForm in Suspense as it uses useSearchParams */}
+           <Suspense fallback={<LoginFormLoading />}>
+               <LoginForm />
+           </Suspense>
         </CardContent>
          <CardContent className="mt-4 text-center text-sm">
            <p>
