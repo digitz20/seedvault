@@ -1,87 +1,61 @@
-import React, { Suspense, lazy } from 'react';
+
+import React, { Suspense, lazy } from 'react'; // Import lazy
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, AlertTriangle, Eye, Trash2, LogOut, UserCircle } from "lucide-react"; // Added UserCircle
+import { PlusCircle, AlertTriangle, Eye, Trash2, LogOut } from "lucide-react"; // Remove Loader2
 import Link from "next/link";
-import { getSeedPhraseMetadataAction } from "./_actions/dashboard-actions";
+import { getSeedPhraseMetadataAction } from "./_actions/dashboard-actions"; // Import the metadata action
 import type { SeedPhraseMetadata } from '@/lib/definitions';
-// import { getUserAuth } from '@/lib/auth/utils'; // Removed auth import
-import { redirect } from 'next/navigation';
+import { getUserAuth } from '@/lib/auth/utils'; // Import getUserAuth
+import { redirect } from 'next/navigation'; // Import redirect
 
-// Lazy load components that might not be needed immediately
-const SeedPhraseTable = lazy(() =>
-  import("./_components/seed-phrase-table")
-    // Handle potential loading errors for the lazy component
-    .catch(err => {
-        console.error("Failed to load SeedPhraseTable component:", err);
-        // Return a fallback component or null
-        return { default: () => <div className="text-destructive text-center p-4">Error loading table component.</div> };
-    })
-);
-const DeleteAccountButton = lazy(() =>
-  import('./_components/delete-account-button')
-    .catch(err => {
-        console.error("Failed to load DeleteAccountButton component:", err);
-         // Return a fallback component or null
-        return { default: () => <Button variant="destructive" disabled>Error loading button</Button> };
-    })
-);
+// Lazy load SeedPhraseTable and DeleteAccountButton
+const SeedPhraseTable = lazy(() => import("./_components/seed-phrase-table").then(module => ({ default: module.SeedPhraseTable })));
+const DeleteAccountButton = lazy(() => import('./_components/delete-account-button').then(module => ({ default: module.DeleteAccountButton })));
+
+// Force dynamic rendering for this page because it depends on user session data
+export const dynamic = 'force-dynamic';
 
 // Component to fetch and display data, handling loading and errors
 async function SeedPhraseList() {
-  console.log("[Dashboard - SeedPhraseList] Fetching seed phrase metadata...");
-  // Fetch data (no authentication assumed here, backend needs adjustment)
-  let phrases: SeedPhraseMetadata[] = [];
-  let error: string | undefined;
-
-  try {
-      console.time("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
-      const result = await getSeedPhraseMetadataAction();
-      console.timeEnd("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
-
-      if (result.error) {
-          console.error("[Dashboard - SeedPhraseList] Error fetching metadata:", result.error);
-          error = result.error;
-      } else {
-          phrases = result.phrases || [];
-          console.log(`[Dashboard - SeedPhraseList] Fetched ${phrases.length} phrases successfully.`);
-      }
-  } catch (fetchError: any) {
-      console.error("[Dashboard - SeedPhraseList] Unexpected error during fetch action:", fetchError);
-      error = `An unexpected error occurred while fetching data: ${fetchError.message || 'Unknown error'}`;
-  }
-
+  // Authentication should be verified by the page component before this renders
+  // The action implicitly uses the user's token from the cookie
+  console.time("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
+  const { phrases, error } = await getSeedPhraseMetadataAction();
+  console.timeEnd("[Dashboard - SeedPhraseList] getSeedPhraseMetadataAction Duration");
 
   if (error) {
-    // Display error message if fetching failed
+    // Check for specific auth error message to redirect (although page-level check is primary)
+    if (error.includes('Authentication required') || error.includes('Authentication failed')) {
+         console.warn("[Dashboard - SeedPhraseList] Auth error during data fetch. Redirecting (redundant).");
+         redirect('/login?message=Session expired or invalid. Please log in again.');
+    }
+
     return (
       <div className="text-center py-12 text-destructive flex flex-col items-center gap-2">
          <AlertTriangle className="w-10 h-10" />
          <p className="font-semibold">Error loading seed phrases</p>
          <p className="text-sm max-w-md">{error}</p>
-         <p className="text-xs text-muted-foreground mt-2">Please ensure the backend server is running and accessible.</p>
-         {/* Add a refresh button */}
-         <Button onClick={() => window.location.reload()} variant="outline" size="sm" className="mt-4">
-            Try Again
-         </Button>
+         <p className="text-xs text-muted-foreground mt-2">Please ensure the backend server is running and you are logged in.</p>
       </div>
     );
   }
 
-  if (phrases.length === 0) {
+  const allPhrases = phrases || [];
+
+  if (allPhrases.length === 0) {
     return (
        <div className="text-center py-12">
          <p className="text-muted-foreground">No seed phrases have been saved yet.</p>
          <Button asChild variant="link" className="mt-2">
-           {/* Link to save-seed page - This page needs to work without auth now */}
            <Link href="/save-seed">Add the first one!</Link>
          </Button>
        </div>
     );
   }
 
-  // Pass fetched phrases to the table
-  return <SeedPhraseTable phrases={phrases} />;
+  // Pass all phrases to the table
+  return <SeedPhraseTable phrases={allPhrases} />;
 }
 
 // Skeleton loader for the table
@@ -114,28 +88,32 @@ function TableSkeleton() {
     )
 }
 
-export default function DashboardPage() {
-   // Authentication Check - REMOVED
-   // let userEmail: string | null = null;
-   // const { session } = await getUserAuth();
-   // if (!session?.user) { ... redirect logic ... }
-   // userEmail = session.user.email;
-   console.log("[Dashboard Page] Rendering dashboard (authentication disabled).");
+export default async function DashboardPage() {
+   let userEmail: string | null = null;
 
-   // Simulate a user identifier if needed locally, otherwise backend needs to handle identification
-   const simulatedUserIdentifier = "user@example.com (Simulated)"; // Placeholder
+   // Verify authentication using getUserAuth which returns the session or null
+   // This is the primary authentication check for the page.
+   const { session } = await getUserAuth();
+
+   if (!session?.user) {
+        console.warn("[Dashboard Page] User not authenticated. Redirecting to login.");
+       redirect('/login?message=Please log in to view your dashboard.');
+   } else {
+       userEmail = session.user.email;
+       console.log(`[Dashboard Page] User authenticated: ${userEmail}`);
+   }
+
 
   return (
     <div className="container mx-auto px-4 py-8 sm:px-6 lg:px-8">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">SeedVault Dashboard</h1>
-           {/* Display simulated user info */}
-           <p className="text-muted-foreground mt-1 flex items-center gap-1">
-                <UserCircle className="h-4 w-4" />
-                {/* Display placeholder or fetch user info differently if backend supports it without auth */}
-                Viewing entries (authentication disabled).
-           </p>
+           {userEmail && (
+              <p className="text-muted-foreground mt-1">
+                Welcome, <span className="font-medium">{userEmail}</span>. View your securely stored entries.
+              </p>
+           )}
         </div>
         <Button asChild>
           <Link href="/save-seed">
@@ -150,7 +128,6 @@ export default function DashboardPage() {
           <CardDescription>
               Click the eye icon <Eye className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to reveal details,
               or the trash icon <Trash2 className="inline h-4 w-4 text-muted-foreground align-text-bottom" /> to delete an entry.
-              <span className="block mt-1 text-xs text-muted-foreground">(Actions may be limited without authentication).</span>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,8 +138,8 @@ export default function DashboardPage() {
       </Card>
 
         <div className="mt-8 flex flex-col items-center gap-4">
-           {/* Delete account button - needs update to work without auth */}
-           <Suspense fallback={<Button variant="destructive" disabled>Loading...</Button>}>
+           {/* Delete account button handles its own auth */}
+           <Suspense fallback={<Button disabled>Loading...</Button>}>
                <DeleteAccountButton />
            </Suspense>
            {/* Security Warning moved here */}
@@ -173,3 +150,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
