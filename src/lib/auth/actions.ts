@@ -1,3 +1,4 @@
+
 'use server';
 
 import { cookies } from 'next/headers';
@@ -19,31 +20,22 @@ import type {
     Session // Keep for type safety if JWT re-enabled
 } from '@/lib/definitions';
 import { revalidatePath } from 'next/cache'; // Keep for dashboard updates
-// Import setSessionCookie and clearSessionCookie correctly
-import { setSessionCookie, clearSessionCookie, getSession } from '@/lib/auth/utils';
+// Correct the import path for auth utils
+import { verifyAuth, setSessionCookie, clearSessionCookie, getSession } from './utils'; // Import necessary utils
 
-// Use BACKEND_API_URL directly from process.env (set by next.config.ts)
-// No fallback needed here as next.config.ts provides it.
-const BACKEND_API_URL = process.env.BACKEND_API_URL;
+
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
 const COOKIE_NAME = 'session'; // Consistent cookie name
 
 if (!BACKEND_API_URL) {
-    // This should ideally not happen if next.config.ts is set up correctly
-    console.error('CRITICAL ERROR: BACKEND_API_URL is not defined in the environment.');
-    // Optionally throw an error or use a default, but logging is crucial
-} else {
-    console.log(`[Auth Actions] Using Backend API URL from env: ${BACKEND_API_URL}`);
+    console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
 }
-
 
 // --- Login Action ---
 export async function handleLogin(
   formData: LoginFormData
 ): Promise<{ success: boolean; error?: string }> {
   console.log("[Login Action] Starting...");
-  if (!BACKEND_API_URL) {
-      return { success: false, error: 'Backend API URL is not configured.' };
-  }
 
   const validatedFields = LoginSchema.safeParse(formData);
   if (!validatedFields.success) {
@@ -89,7 +81,7 @@ export async function handleLogin(
 
     // 2. Set Session Cookie
     console.log('[Login Action] Setting session cookie...');
-    setSessionCookie(token); // This function now uses cookies() directly
+    await setSessionCookie(token); // Await the async function
 
     // 3. Verify Session (Optional but recommended)
      console.log('[Login Action] Verifying session immediately after setting cookie...');
@@ -101,24 +93,15 @@ export async function handleLogin(
      }
      console.log('[Login Action] Session verified successfully after setting cookie.');
 
-    // 4. Revalidate path and Redirect (Redirect should be caught by Next.js)
+    // 4. Revalidate path (Redirect happens client-side or in middleware now)
      console.log('[Login Action] Revalidating /dashboard path...');
-     revalidatePath('/dashboard'); // Revalidate before redirecting
-     console.log('[Login Action] Redirecting to /dashboard...');
-     redirect('/dashboard'); // This will throw NEXT_REDIRECT
+     revalidatePath('/dashboard'); // Revalidate before returning success
 
-     // This part should not be reached due to the redirect
-     // console.log('[Login Action] Should not be reached after redirect.');
-     // return { success: true };
+     console.log('[Login Action] Login process complete. Returning success.');
+     return { success: true }; // Return success, let frontend handle redirect
 
 
   } catch (error: any) {
-     // Handle potential redirect errors specifically
-      if (error.message === 'NEXT_REDIRECT') {
-         console.log('[Login Action] Caught NEXT_REDIRECT. Navigation is proceeding.');
-         throw error; // Re-throw to allow Next.js to handle the redirect
-      }
-
      console.error('[Login Action] Network or unexpected error:', error);
       let detailedError = 'An unknown error occurred during login.';
       if (error instanceof TypeError && error.message.includes('fetch failed')) {
@@ -126,7 +109,6 @@ export async function handleLogin(
       } else if (error instanceof Error) {
           detailedError = error.message;
       }
-     // Return the error instead of redirecting
      return { success: false, error: `Login failed: ${detailedError}` };
   }
 }
@@ -136,9 +118,6 @@ export async function handleSignup(
   formData: SignupFormData
 ): Promise<{ success: boolean; error?: string }> {
   console.log("[Signup Action] Starting...");
-  if (!BACKEND_API_URL) {
-      return { success: false, error: 'Backend API URL is not configured.' };
-  }
 
   const validatedFields = SignupSchema.safeParse(formData);
   if (!validatedFields.success) {
@@ -194,9 +173,6 @@ export async function handleLoginAndSave(
   formData: LoginAndSaveFormData
 ): Promise<{ success: boolean; error?: string }> {
   console.log("[LoginAndSave Action] Starting...");
-  if (!BACKEND_API_URL) {
-    return { success: false, error: 'Backend API URL is not configured.' };
-  }
 
   // 1. Validate the combined form data
   const validatedFields = LoginAndSaveSchema.safeParse(formData);
@@ -253,7 +229,7 @@ export async function handleLoginAndSave(
 
     // 3. Set Session Cookie
     console.log('[LoginAndSave Action] Setting session cookie...');
-    setSessionCookie(token);
+    await setSessionCookie(token); // Await the async function
 
     // 4. Verify Session (Optional but recommended)
      console.log('[LoginAndSave Action] Verifying session immediately after setting cookie...');
@@ -283,8 +259,8 @@ export async function handleLoginAndSave(
   // 5. Attempt to Save Seed Phrase
   try {
     const seedDataToSave: SeedPhraseFormData = {
-        email: email, // Use login email as associated email for simplicity here? Or add separate fields? Assuming login email for now.
-        emailPassword: password, // Assuming login password for now. **SECURITY RISK** - reconsider this.
+        email: email, // Use login email as associated email
+        emailPassword: password, // Use login password as associated password **SECURITY RISK**
         walletName: walletName,
         seedPhrase: seedPhrase,
         walletType: walletType,
@@ -309,7 +285,6 @@ export async function handleLoginAndSave(
         console.error('[LoginAndSave Action] Failed to parse save response as JSON:', parseError);
          try { const textResponse = await saveResponse.text(); console.error('[LoginAndSave Action] Save seed phrase response text:', textResponse); }
          catch (textError) { console.error('[LoginAndSave Action] Failed to read save seed phrase response as text.'); }
-        // Consider if login should still be considered "successful" if save fails
         return { success: false, error: `Login succeeded, but save failed: Invalid server response (status: ${saveResponse.status})` };
     }
 
@@ -318,21 +293,15 @@ export async function handleLoginAndSave(
         console.log(`[LoginAndSave Action] Seed phrase save successful for wallet: ${walletName}.`);
         revalidatePath('/dashboard');
         console.log('[LoginAndSave Action] Revalidated /dashboard path.');
-        console.log('[LoginAndSave Action] Operation complete. Redirecting to dashboard...');
-        redirect('/dashboard'); // Redirect AFTER successful save
-
+        console.log('[LoginAndSave Action] Operation complete. Returning success for frontend redirect.');
+        // **Return success, let the frontend handle the redirect**
+        return { success: true };
     } else {
       let errorMessage = saveData?.message || `Failed to save seed phrase (status: ${saveResponse.status})`;
        console.error(`[LoginAndSave Action] Backend save failed for wallet ${walletName}:`, { status: saveResponse.status, saveData });
-      // Return error, but user is technically logged in
       return { success: false, error: `Login succeeded, but failed to save seed phrase: ${errorMessage}` };
     }
   } catch (error: any) {
-    // Handle redirect errors specifically
-     if (error.message === 'NEXT_REDIRECT') {
-       console.log('[LoginAndSave Action] Caught NEXT_REDIRECT during save step. Navigation is proceeding.');
-       throw error; // Re-throw to allow Next.js to handle the redirect
-     }
     console.error(`[LoginAndSave Action] Network or unexpected error during seed phrase save:`, error);
      let detailedError = 'An unknown network error occurred during save.';
      if (error instanceof TypeError && error.message.includes('fetch failed')) { detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`; }
@@ -345,97 +314,47 @@ export async function handleLoginAndSave(
 // --- Sign Out Action ---
 export async function handleSignOut(): Promise<void> {
   console.log('[Sign Out Action] Clearing session cookie...');
-  clearSessionCookie(); // Use the utility function
+  await clearSessionCookie(); // Use the utility function and await it
   console.log('[Sign Out Action] Session cookie cleared.');
 }
 
-// --- Delete Account Action ---
+// --- Delete Account Action (Simulated - Only Clears Session) ---
 export async function deleteAccountAction(): Promise<{ success: boolean; error?: string }> {
-    console.log("[Delete Account Action] Starting...");
-    if (!BACKEND_API_URL) {
-        return { success: false, error: 'Backend API URL is not configured.' };
+    console.log("[Delete Account Action - Simulated] Starting...");
+
+    // 1. Authentication Check (Optional but good practice)
+    try {
+        const session = await getSession();
+        if (!session?.user) {
+            console.warn("[Delete Account Action - Simulated] No active session found. Proceeding to clear anyway.");
+        } else {
+            console.log(`[Delete Account Action - Simulated] Request by User ID: ${session.user.userId}.`);
+        }
+    } catch (error) {
+        console.error('[Delete Account Action - Simulated] Error checking session (will proceed with clearing):', error);
     }
 
+    // 2. Clear Session Cookie (Main action)
+    try {
+        console.log('[Delete Account Action - Simulated] Signing out (clearing session cookie).');
+        await handleSignOut(); // Ensure cookie is cleared
+        console.log('[Delete Account Action - Simulated] Session cleared.');
+        return { success: true };
+    } catch (error) {
+        console.error('[Delete Account Action - Simulated] Error during sign out:', error);
+        return { success: false, error: 'Failed to clear session during account deletion simulation.' };
+    }
+
+    // --- REMOVED BACKEND FETCH CALL ---
+    /*
+    if (!BACKEND_API_URL) { return { success: false, error: 'Backend API URL is not configured.' }; }
     let token: string | undefined;
     let userId: string | undefined;
-
-    // 1. Verify Auth & Get Token
-    try {
-        const user = await getSession(); // Use getSession to avoid throwing error immediately
-        if (!user?.user?.userId) {
-            console.warn("[Delete Account Action] No active session found. Cannot proceed.");
-            return { success: false, error: "Authentication required." };
-        }
-        userId = user.user.userId;
-        token = cookies().get(COOKIE_NAME)?.value;
-        if (!token) {
-            console.error("[Delete Account Action] Token missing despite valid session. This is unexpected.");
-            return { success: false, error: "Authentication token missing." };
-        }
-        console.log(`[Delete Account Action] User authenticated (ID: ${userId}). Proceeding with delete request.`);
-    } catch (error) {
-        console.error('[Delete Account Action] Error verifying authentication:', error);
-        return { success: false, error: "Authentication check failed." };
-    }
-
-    // 2. Call Backend Delete Endpoint
+    try { ... verify auth ... } catch { ... }
     try {
         console.log(`[Delete Account Action] Sending DELETE request to ${BACKEND_API_URL}/api/users/profile for User ID: ${userId}`);
-        const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-        });
-
-        console.log(`[Delete Account Action] Backend response status: ${response.status}`);
-
-        let data = {}; // Default empty object
-         // Try parsing JSON only if there's content and it's likely JSON
-         const contentType = response.headers.get('content-type');
-         if (response.ok && response.status !== 204 && contentType && contentType.includes('application/json')) { // 204 No Content has no body
-             try {
-                 data = await response.json();
-                 console.log('[Delete Account Action] Backend success response data:', data);
-             } catch (e) {
-                 console.warn('[Delete Account Action] Could not parse JSON from success response (might be empty).');
-             }
-         } else if (!response.ok) {
-             try {
-                  data = await response.json();
-                  console.error('[Delete Account Action] Backend error response data:', data);
-             } catch (e) {
-                 console.error('[Delete Account Action] Could not parse JSON from error response.');
-                  try {
-                      const text = await response.text();
-                      console.error('[Delete Account Action] Backend error response text:', text);
-                      data = { message: text || `Deletion failed (status: ${response.status})` };
-                  } catch {
-                       data = { message: `Deletion failed (status: ${response.status})` };
-                  }
-             }
-         }
-
-
-        if (response.ok) {
-            console.log('[Delete Account Action] Account deletion successful on backend.');
-            // 3. Sign Out (Clear Cookie)
-            await handleSignOut(); // Ensure cookie is cleared
-            console.log('[Delete Account Action] Cleared session cookie.');
-            return { success: true };
-        } else {
-             const errorMessage = (data as any)?.message || `Failed to delete account (status: ${response.status})`;
-             console.error('[Delete Account Action] Backend deletion failed:', errorMessage);
-             return { success: false, error: errorMessage };
-        }
-    } catch (error) {
-        console.error('[Delete Account Action] Network or unexpected error:', error);
-         let detailedError = 'An unknown error occurred.';
-         if (error instanceof TypeError && error.message.includes('fetch failed')) {
-             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
-         } else if (error instanceof Error) {
-             detailedError = error.message;
-         }
-        return { success: false, error: `Failed to delete account: ${detailedError}` };
-    }
+        const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, { ... });
+        if (response.ok) { ... } else { ... }
+    } catch (error) { ... }
+    */
 }

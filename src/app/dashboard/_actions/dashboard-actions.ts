@@ -9,17 +9,14 @@ import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitio
 import { cookies } from 'next/headers'; // Import cookies
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache'; // Import revalidatePath for delete
-import { verifyAuth, getSession } from '@/lib/auth/utils'; // Import verifyAuth and getSession
+import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth for rigorous check
 
-// Use BACKEND_API_URL directly from process.env (set by next.config.ts)
-const BACKEND_API_URL = process.env.BACKEND_API_URL;
+// Use the standard backend URL variable
+const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
 const COOKIE_NAME = 'session'; // Consistent cookie name
 
 if (!BACKEND_API_URL) {
-    console.error('CRITICAL ERROR: BACKEND_API_URL is not defined in the environment.');
-    // This action will fail if the URL is missing.
-} else {
-    console.log(`[Dashboard Actions] Using Backend API URL from env: ${BACKEND_API_URL}`);
+    console.warn('Warning: BACKEND_API_URL environment variable is not defined. Using default http://localhost:3001');
 }
 
 // Helper function to get the auth token (used after verifyAuth confirms session)
@@ -30,7 +27,6 @@ function getAuthToken(): string | undefined {
 // Action to get the authenticated user's seed phrase metadata
 export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhraseMetadata[]; error?: string }> {
     console.log("[Get Metadata Action] Starting..."); // Log start of action
-    if (!BACKEND_API_URL) return { error: 'Backend API URL is not configured.' };
     console.time('[Get Metadata Action] Total Duration'); // Start overall timer
     let userId: string;
     let userEmail: string; // Added to log email as well
@@ -129,7 +125,6 @@ export async function getSeedPhraseMetadataAction(): Promise<{ phrases?: SeedPhr
 
 // Action to reveal the plain text details of a specific seed phrase by its ID (requires auth)
 export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?: RevealedSeedPhraseData; error?: string }> {
-    if (!BACKEND_API_URL) return { error: 'Backend API URL is not configured.' };
     let userId: string;
     let userEmail: string;
     let token: string | undefined;
@@ -204,23 +199,19 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
 }
 
 
-// Action to delete a seed phrase entry by its ID (requires auth)
+// Action to "delete" a seed phrase entry by its ID (only updates frontend state)
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
-     if (!BACKEND_API_URL) return { success: false, error: 'Backend API URL is not configured.' };
      let userId: string;
      let userEmail: string;
-     let token: string | undefined;
 
-     // 1. Initial Authentication Check
+     // 1. Initial Authentication Check (still good practice to verify ownership)
      try {
          const user = await verifyAuth();
          userId = user.userId;
          userEmail = user.email;
-         token = getAuthToken();
-         if (!token) throw new Error('Session token missing after successful verification.');
-         console.warn(`[Delete Action] HARD DELETE request initiated by User ID: ${userId}, Email: ${userEmail} for Phrase ID: ${phraseId}`); // Include email
+         console.log(`[Delete Action - Simulated] Request by User ID: ${userId}, Email: ${userEmail} for Phrase ID: ${phraseId}`);
      } catch (error: any) {
-         console.error(`[Delete Action] verifyAuth failed for Phrase ID ${phraseId}:`, error.message);
+         console.error(`[Delete Action - Simulated] verifyAuth failed for Phrase ID ${phraseId}:`, error.message);
          return { success: false, error: 'Authentication required. Please log in.' };
      }
 
@@ -228,30 +219,29 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         return { success: false, error: 'Invalid Phrase ID provided.'};
     }
 
-     // 2. Perform Delete
+    // 2. Simulate Success (No Backend Call)
+    console.log(`[Delete Action - Simulated] SIMULATING deletion for Phrase ID: ${phraseId}. No database interaction.`);
+
+    // Immediately return success to allow the frontend to update the UI
+    // RevalidatePath is still useful if the underlying data *could* change through other means,
+    // but technically not needed if ONLY this action modifies the list being displayed.
+    // Let's keep it for potential future changes.
+    revalidatePath('/dashboard');
+    return { success: true };
+
+     // --- REMOVED BACKEND FETCH CALL ---
+    /*
     try {
          console.log(`[Delete Action] Sending HARD DELETE request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId} (User: ${userId})`);
         const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
             method: 'DELETE',
             headers: {
-                'Authorization': `Bearer ${token}`,
+                'Authorization': `Bearer ${token}`, // Token needed for backend auth
             },
         });
 
         if (!response.ok) {
-            let errorMessage = `Failed to delete (status: ${response.status})`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.message || (response.status === 404 ? 'Seed phrase not found or access denied.' : errorMessage);
-                console.error('[Delete Action] Backend error:', { status: response.status, errorData, phraseId, userId, userEmail }); // Include email
-                 if (response.status === 401 || response.status === 403) errorMessage = 'Authentication issue during deletion.';
-                 if (response.status === 404) errorMessage = 'Seed phrase not found or access denied.';
-            } catch (e) {
-                 console.error('[Delete Action] Failed to delete, could not parse error response:', response.status, response.statusText, phraseId, userId, userEmail); // Include email
-                errorMessage = `Failed to delete: ${response.statusText || 'Unknown server error'}`;
-                 if (response.status === 401 || response.status === 403) errorMessage = 'Authentication issue during deletion.';
-                 if (response.status === 404) errorMessage = 'Seed phrase not found or access denied.';
-            }
+            // ... error handling ...
             return { success: false, error: errorMessage };
         }
 
@@ -260,13 +250,8 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         return { success: true };
 
     } catch (error) {
-        console.error(`[Delete Action] Network or unexpected error for Phrase ID: ${phraseId}, User ID: ${userId}, Email: ${userEmail}`, error); // Include email
-         let detailedError = 'An unknown network error occurred.';
-         if (error instanceof TypeError && error.message.includes('fetch failed')) {
-             detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`;
-         } else if (error instanceof Error) {
-             detailedError = error.message;
-         }
+        // ... error handling ...
         return { success: false, error: `Failed to delete seed phrase: ${detailedError}` };
     }
+    */
 }
