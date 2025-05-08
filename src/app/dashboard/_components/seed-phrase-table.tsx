@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react'; // Added React import
@@ -33,8 +34,8 @@ import {
 import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2, Unlock } from "lucide-react"; // Changed LockKeyhole to Unlock
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
-// Import delete action and reveal action
-import { revealSeedPhraseAction, deleteSeedPhraseAction } from '../_actions/dashboard-actions';
+// Import reveal action, REMOVE delete action import
+import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -117,7 +118,6 @@ const MemoizedTableRow = React.memo(({ phrase, isLoading, handleReveal, setPhras
 MemoizedTableRow.displayName = 'MemoizedTableRow'; // Set display name for DevTools
 
 
-// Ensure this is the default export
 export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
@@ -173,38 +173,40 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     }
   };
 
-  const handleServerDeleteConfirm = async (phraseId: string) => {
+  // Renamed function and removed backend call
+  const handleLocalDeleteConfirm = (phraseId: string) => {
      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
      const phraseBeingDeleted = phraseToDelete;
-     setPhraseToDelete(null);
+     setPhraseToDelete(null); // Close dialog
 
-     try {
-       const result = await deleteSeedPhraseAction(phraseId);
-       if (result.success) {
+     // Simulate a short delay for visual feedback (optional)
+     setTimeout(() => {
+       try {
+          // Update the UI state directly without calling the backend
+          if (phraseBeingDeleted) {
+              setPhrases(currentPhrases => currentPhrases.filter(p => p._id !== phraseBeingDeleted._id));
+              toast({
+                 title: 'Entry Removed',
+                 description: 'The seed phrase entry has been removed from view.', // Updated message
+               });
+          } else {
+               toast({
+                 variant: 'destructive',
+                 title: 'Error Removing Entry',
+                 description: 'Could not find the entry to remove locally.',
+               });
+          }
+       } catch (error) {
           toast({
-            title: 'Deleted Successfully',
-            description: 'The seed phrase entry has been permanently deleted.',
+             variant: 'destructive',
+             title: 'Error',
+             description: 'An unexpected error occurred while removing the entry locally.',
           });
-           if (phraseBeingDeleted) {
-               setPhrases(currentPhrases => currentPhrases.filter(p => p._id !== phraseBeingDeleted._id));
-           }
-       } else {
-          toast({
-            variant: 'destructive',
-            title: 'Deletion Failed',
-            description: result.error || 'Could not delete the seed phrase entry.',
-          });
+         console.error("Local delete error:", error);
+       } finally {
+         setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: false }));
        }
-     } catch (error) {
-        toast({
-           variant: 'destructive',
-           title: 'Error',
-           description: 'An unexpected error occurred during deletion.',
-        });
-       console.error("Delete error:", error);
-     } finally {
-       setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: false }));
-     }
+     }, 300); // Short delay e.g., 300ms
   };
 
   const handleCopyToClipboard = (text: string | undefined | null, fieldName: string) => {
@@ -277,16 +279,16 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                       <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently delete your seed phrase entry &quot;{phraseToDelete?.walletName}&quot;. This action cannot be undone.
+                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view. The data will remain in the database.
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setPhraseToDelete(null)}>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                              onClick={() => phraseToDelete && handleServerDeleteConfirm(phraseToDelete._id)}
+                              onClick={() => phraseToDelete && handleLocalDeleteConfirm(phraseToDelete._id)} // Use local handler
                               className="bg-destructive hover:bg-destructive/90"
                           >
-                              Delete Permanently
+                              Remove from View
                           </AlertDialogAction>
                       </AlertDialogFooter>
                   </AlertDialogContent>
@@ -306,7 +308,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                ) : revealedData ? (
                   <DialogDescription>
                      <span>Details for: <span className="font-semibold">{revealedData.walletName}</span> (<Badge variant="outline" className="text-xs">{revealedData.walletType}</Badge>).</span>
-                     <span className="block mt-1 text-xs text-destructive font-medium">Data is shown in plain text.</span>
+                     <span className="block mt-1 text-xs text-destructive font-medium">Data is shown in plain text. Ensure you understand the security implications.</span>
                    </DialogDescription>
                ) : (
                    <DialogDescription>Could not load details.</DialogDescription>
@@ -423,3 +425,5 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     </>
   );
 }
+
+    

@@ -17,85 +17,83 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Trash2, Loader2 } from 'lucide-react'; // Using Trash2 icon for deletion, Loader2 for loading
 import { useToast } from '@/hooks/use-toast';
-import { deleteAccountAction } from '@/lib/auth/actions'; // Import the actual delete action
+// REMOVE import of deleteAccountAction
+// Import handleSignOut instead
+import { handleSignOut } from '@/lib/auth/actions';
 
 export default function DeleteAccountButton() {
   const router = useRouter();
   const { toast } = useToast();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // Add loading state
+  const [isDeleting, setIsDeleting] = useState(false); // Keep loading state for sign out
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true); // Start loading
     setConfirmOpen(false); // Close dialog immediately
 
     try {
-        const result = await deleteAccountAction(); // Call the server action
+        // REMOVE call to deleteAccountAction()
+        // ADD call to handleSignOut()
+        await handleSignOut();
 
-        if (result.success) {
-            toast({
-                title: 'Account Deleted',
-                description: 'Your account and all associated data have been permanently deleted. Redirecting...',
-            });
-            // Redirect to homepage after successful deletion (sign out is handled in the action)
-            // Add a slight delay for the toast to be seen
-             setTimeout(() => {
-                 router.push('/');
-                 router.refresh(); // Force refresh to clear any potentially cached user state
-             }, 1500);
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Deletion Failed',
-                description: result.error || 'Could not delete your account. Please try again.',
-            });
-            setIsDeleting(false); // Stop loading on failure
-        }
+        toast({
+            title: 'Signed Out', // Update message
+            description: 'You have been signed out. Redirecting...',
+        });
+        // Redirect to homepage after sign out
+        setTimeout(() => {
+            router.push('/');
+            router.refresh(); // Force refresh to clear any potentially cached user state
+        }, 1500);
+
     } catch (error) {
-        console.error("Delete account error:", error);
+        console.error("Sign out error (from Delete Account button):", error);
         toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'An unexpected error occurred while deleting your account.',
+            description: 'An unexpected error occurred while signing out.',
         });
         setIsDeleting(false); // Stop loading on error
     }
-    // No finally block needed for setIsDeleting as we handle success/error explicitly
+    // Do not set isDeleting to false on success path because of redirect
   };
 
   return (
     <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" disabled={isDeleting}> {/* Disable button while deleting */}
+        <Button variant="destructive" disabled={isDeleting}> {/* Disable button while signing out */}
           {isDeleting ? (
               <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Out...
               </>
           ) : (
               <>
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Account
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete Account {/* Keep UI text same for now */}
               </>
           )}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle> {/* Stronger wording */}
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          {/* Update description to reflect the actual action (sign out) */}
           <AlertDialogDescription>
-             This action cannot be undone. This will permanently delete your account and all associated seed phrase data from SeedVault servers.
+             This action will sign you out of your current session and redirect you to the homepage. Your account and data will NOT be deleted.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => setIsConfirmOpen(false)}>Cancel</AlertDialogCancel>
           <AlertDialogAction
              onClick={handleDeleteConfirm}
-             className="bg-destructive hover:bg-destructive/90" // Use destructive color for confirmation
-             // No disabled state needed here as the outer button handles it
+             className="bg-destructive hover:bg-destructive/90"
             >
-             Yes, Delete My Account Permanently
+             {/* Update action button text to reflect sign out */}
+             Yes, Sign Me Out
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
+
+    
