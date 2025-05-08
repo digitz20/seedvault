@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react'; // Added React import
@@ -181,11 +180,7 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
     }
   };
 
-<<<<<<< HEAD
   // Function to handle removing the entry from the local UI state only
-=======
-  // Function to handle deleting the entry from the local UI state only
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
   const handleLocalDeleteConfirm = (phraseId: string) => {
      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
      const phraseBeingDeleted = phraseToDelete;
@@ -291,11 +286,7 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
                       <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-<<<<<<< HEAD
-                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view.
-=======
                             This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view. The data will remain in the database but won't be shown here.
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

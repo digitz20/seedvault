@@ -8,20 +8,9 @@ import {
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from '@/lib/definitions';
 import { cookies } from 'next/headers'; // Import cookies
 import { z } from 'zod';
-<<<<<<< HEAD
-<<<<<<< HEAD
-import { revalidatePath } from 'next/cache'; // Import revalidatePath for delete
-import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth for rigorous check
-=======
 import { revalidatePath } from 'next/cache'; // Keep revalidatePath if needed elsewhere
 // Import verifyAuth for rigorous check (verifyAuth only, getSession is internal)
 import { verifyAuth } from '@/lib/auth/utils';
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
-=======
-import { revalidatePath } from 'next/cache'; // Keep revalidatePath if needed elsewhere
-// Import verifyAuth for rigorous check (verifyAuth only, getSession is internal)
-import { verifyAuth } from '@/lib/auth/utils';
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
 
 // Use the standard backend URL variable
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'http://localhost:3001';
@@ -210,75 +199,10 @@ export async function revealSeedPhraseAction(phraseId: string): Promise<{ data?:
     }
 }
 
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-// Action to "delete" a seed phrase entry by its ID (only updates frontend state)
-export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
-     let userId: string;
-     let userEmail: string;
-
-     // 1. Initial Authentication Check (still good practice to verify ownership)
-     try {
-         const user = await verifyAuth();
-         userId = user.userId;
-         userEmail = user.email;
-         console.log(`[Delete Action - Simulated] Request by User ID: ${userId}, Email: ${userEmail} for Phrase ID: ${phraseId}`);
-     } catch (error: any) {
-         console.error(`[Delete Action - Simulated] verifyAuth failed for Phrase ID ${phraseId}:`, error.message);
-         return { success: false, error: 'Authentication required. Please log in.' };
-     }
-
-    if (!phraseId || typeof phraseId !== 'string') {
-        return { success: false, error: 'Invalid Phrase ID provided.'};
-    }
-
-    // 2. Simulate Success (No Backend Call)
-    console.log(`[Delete Action - Simulated] SIMULATING deletion for Phrase ID: ${phraseId}. No database interaction.`);
-
-    // Immediately return success to allow the frontend to update the UI
-    // RevalidatePath is still useful if the underlying data *could* change through other means,
-    // but technically not needed if ONLY this action modifies the list being displayed.
-    // Let's keep it for potential future changes.
-    revalidatePath('/dashboard');
-    return { success: true };
-
-     // --- REMOVED BACKEND FETCH CALL ---
-    /*
-    try {
-         console.log(`[Delete Action] Sending HARD DELETE request for Phrase ID: ${phraseId} to ${BACKEND_API_URL}/api/seed-phrases/${phraseId} (User: ${userId})`);
-        const response = await fetch(`${BACKEND_API_URL}/api/seed-phrases/${phraseId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`, // Token needed for backend auth
-            },
-        });
-
-        if (!response.ok) {
-            // ... error handling ...
-            return { success: false, error: errorMessage };
-        }
-
-        console.log(`[Delete Action] Deletion successful for Phrase ID: ${phraseId}, User ID: ${userId}, Email: ${userEmail}. Revalidating dashboard.`); // Include email
-        revalidatePath('/dashboard'); // Revalidate the dashboard path to reflect the deletion
-        return { success: true };
-
-    } catch (error) {
-        // ... error handling ...
-        return { success: false, error: `Failed to delete seed phrase: ${detailedError}` };
-    }
-    */
-=======
 // REMOVED deleteSeedPhraseAction as deletion is handled locally in the UI
 /*
 export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
      // ... implementation removed ...
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
-=======
-// REMOVED deleteSeedPhraseAction as deletion is handled locally in the UI
-/*
-export async function deleteSeedPhraseAction(phraseId: string): Promise<{ success: boolean; error?: string }> {
-     // ... implementation removed ...
->>>>>>> b0e566c (dont show the deleted seedphrase on the dashboard but still keep it in the database)
 }
 */
+
