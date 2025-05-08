@@ -26,7 +26,7 @@ export default function DeleteAccountButton() {
   const router = useRouter();
   const { toast } = useToast();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // Keep loading state for sign out/redirect
+  const [isDeleting, setIsDeleting] = useState(false); // Keep loading state for redirect visual feedback
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true); // Start loading
@@ -34,26 +34,26 @@ export default function DeleteAccountButton() {
 
     // Simulate sign-out/delete process (no backend call)
     toast({
-        title: 'Action Simulated', // Update message
+        title: 'Action Simulated', // Keep title less alarming
         description: 'Returning to homepage...',
         duration: 1500,
     });
-    // Redirect to homepage after simulated sign out
+    // Redirect to homepage
     setTimeout(() => {
-        router.push('/');
-        router.refresh(); // Force refresh to clear any potentially cached user state
+        router.push('/'); // Redirect to the homepage
+        // No need to refresh, homepage is public
         // setIsDeleting(false); // No need to set here due to redirect
-    }, 1500);
+    }, 1500); // Short delay for toast visibility
 
   };
 
   return (
     <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive" disabled={isDeleting}> {/* Disable button while signing out */}
+        <Button variant="destructive" disabled={isDeleting}> {/* Disable button while redirecting */}
           {isDeleting ? (
               <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing Out...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Returning...
               </>
           ) : (
               <>
@@ -64,19 +64,19 @@ export default function DeleteAccountButton() {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-          {/* Update description to reflect the actual action (sign out) */}
+          <AlertDialogTitle>Are you sure?</AlertDialogTitle> {/* Less alarming title */}
+          {/* Update description to reflect the actual action (return home) */}
           <AlertDialogDescription>
-             This action will return you to the homepage.
+             This action will return you to the homepage. Your account data will not be deleted.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={() => setIsConfirmOpen(false)}>Cancel</AlertDialogCancel>
           <AlertDialogAction
              onClick={handleDeleteConfirm}
-             className="bg-destructive hover:bg-destructive/90"
+             className="bg-destructive hover:bg-destructive/90" // Keep style for consistency? Or change to default? Keep for now.
             >
-             {/* Update action button text to reflect sign out */}
+             {/* Update action button text to reflect return home */}
              Yes, Return to Home
           </AlertDialogAction>
         </AlertDialogFooter>
