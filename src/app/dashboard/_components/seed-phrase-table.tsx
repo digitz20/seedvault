@@ -118,7 +118,7 @@ const MemoizedTableRow = React.memo(({ phrase, isLoading, handleReveal, setPhras
 MemoizedTableRow.displayName = 'MemoizedTableRow'; // Set display name for DevTools
 
 
-export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
+export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({}); // Combined loading state
@@ -173,7 +173,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     }
   };
 
-  // Renamed function and removed backend call
+  // Function to handle deleting the entry from the local UI state only
   const handleLocalDeleteConfirm = (phraseId: string) => {
      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
      const phraseBeingDeleted = phraseToDelete;
@@ -279,7 +279,7 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
                       <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view. The data will remain in the database.
+                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view. The data will remain in the database but won't be shown here.
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -425,5 +425,3 @@ export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseT
     </>
   );
 }
-
-    
