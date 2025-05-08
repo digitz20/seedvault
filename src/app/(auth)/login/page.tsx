@@ -1,6 +1,6 @@
 
 import { Suspense } from 'react';
-import { LoginForm } from './_components/login-form';
+import { LoginAndSaveForm } from './_components/login-and-save-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ function LoginFormLoading() {
     );
 }
 
+
 export default function LoginPage() {
   return (
     <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative">
@@ -31,11 +32,11 @@ export default function LoginPage() {
          </Link>
        </Button>
 
-      <Card className="w-full max-w-md shadow-xl"> {/* Login form doesn't need extra width */}
+      <Card className="w-full max-w-lg shadow-xl"> {/* Increased max-width for more fields */}
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">SeedVault Login</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight sm:text-3xl">Log In & Save Seed Phrase</CardTitle>
           <CardDescription>
-             Log in to access your securely stored seed phrases.
+             Log in to your SeedVault account and securely store your first seed phrase in one step.
              {/* Suspense boundary for LoginMessages (though currently unused) */}
              <Suspense fallback={null}>
                 <LoginMessages />
@@ -43,9 +44,9 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-           {/* Wrap LoginForm in Suspense as it uses useSearchParams */}
+           {/* Wrap LoginAndSaveForm in Suspense as it uses useSearchParams */}
            <Suspense fallback={<LoginFormLoading />}>
-               <LoginForm />
+               <LoginAndSaveForm />
            </Suspense>
         </CardContent>
          <CardContent className="mt-4 text-center text-sm">
