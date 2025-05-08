@@ -34,9 +34,8 @@ import {
 import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2, Unlock } from "lucide-react"; // Changed LockKeyhole to Unlock
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
-// Import reveal action, REMOVE delete action import
-// Simulating no auth, so actions are disabled/not called
-// import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
+// Import reveal action, use local delete logic
+import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -119,7 +118,7 @@ const MemoizedTableRow = React.memo(({ phrase, isLoading, handleReveal, setPhras
 MemoizedTableRow.displayName = 'MemoizedTableRow'; // Set display name for DevTools
 
 
-export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
+export default function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProps) {
   const { toast } = useToast();
   const [phrases, setPhrases] = useState<SeedPhraseMetadata[]>(initialPhrases);
   const [isLoading, setIsLoading] = useState<Record<string, boolean>>({}); // Combined loading state
@@ -146,35 +145,40 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
 
   const handleReveal = async (phraseId: string) => {
     setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: true }));
-    setRevealedData(null);
+    setRevealedData(null); // Clear previous data
     setIsRevealModalOpen(true);
 
-    // Simulate API call delay (remove in production)
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      console.log(`[SeedPhraseTable] Calling revealSeedPhraseAction for ID: ${phraseId}`);
+      // Call the actual server action to get the revealed data
+      const result = await revealSeedPhraseAction(phraseId);
+      console.log(`[SeedPhraseTable] revealSeedPhraseAction result:`, result);
 
-    // Find the phrase locally (as backend call is bypassed)
-    const phraseMeta = phrases.find(p => p._id === phraseId);
-    if (phraseMeta) {
-        // Simulate revealed data (replace with actual API call result if needed)
-        const simulatedRevealed: RevealedSeedPhraseData = {
-            _id: phraseMeta._id,
-            walletName: phraseMeta.walletName,
-            walletType: phraseMeta.walletType,
-            email: `associated-${phraseId.substring(0,5)}@email.com`, // Placeholder
-            emailPassword: `password-${phraseId.substring(0,5)}`, // Placeholder
-            seedPhrase: `simulated seed phrase for wallet ${phraseId.substring(0,5)} twelve words example demo only test` // Placeholder
-        };
-        setRevealedData(simulatedRevealed);
-    } else {
+      if (result.data) {
+        // Set the state with the actual revealed data from the backend
+        setRevealedData(result.data);
+         console.log(`[SeedPhraseTable] Revealed data set for ID: ${phraseId}`);
+      } else {
+         console.error(`[SeedPhraseTable] Reveal failed for ID ${phraseId}:`, result.error);
         toast({
             variant: 'destructive',
             title: 'Reveal Failed',
-            description: 'Could not find phrase details locally.',
+            description: result.error || 'Could not retrieve seed phrase details.',
         });
-        setIsRevealModalOpen(false);
+        setIsRevealModalOpen(false); // Close modal on error
+      }
+    } catch (error) {
+      console.error(`[SeedPhraseTable] Unexpected error during reveal for ID ${phraseId}:`, error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'An unexpected error occurred while revealing the phrase.',
+      });
+      setIsRevealModalOpen(false); // Close modal on error
+    } finally {
+      setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
+       console.log(`[SeedPhraseTable] Finished reveal attempt for ID: ${phraseId}`);
     }
-
-    setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
   };
 
   // Function to handle removing the entry from the local UI state only
@@ -429,6 +433,3 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
     </>
   );
 }
-
-// Add default export
-export default SeedPhraseTable;
