@@ -1,3 +1,4 @@
+
 'use server';
 
 import { seedPhraseFormSchema } from '@/lib/definitions'; // Use the form-specific schema
@@ -6,6 +7,7 @@ import type { SeedPhraseFormData } from '@/lib/definitions';
 import { revalidatePath } from 'next/cache';
 // import { verifyAuth } from '@/lib/auth/utils'; // Removed authentication
 
+// **Update BACKEND_API_URL to the provided Render URL**
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'https://seedvault.onrender.com';
 // const COOKIE_NAME = 'session'; // No longer needed
 
@@ -113,3 +115,5 @@ export async function saveSeedPhraseAction(
     };
   }
 }
+
+```

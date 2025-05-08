@@ -6,32 +6,44 @@ import { z } from 'zod';
 import {
     LoginSchema,
     SignupSchema,
-    seedPhraseFormSchema,
-    LoginAndSaveSchema,
+    seedPhraseFormSchema, // Keep schema for validation
+    LoginAndSaveSchema, // Keep schema for validation
     userClientDataSchema // Keep for JWT payload validation if re-enabled
 } from '@/lib/definitions';
 import type {
     LoginFormData,
     SignupFormData,
-    SeedPhraseFormData,
-    LoginAndSaveFormData,
+    SeedPhraseFormData, // Keep for type safety
+    LoginAndSaveFormData, // Keep for type safety
     UserClientData, // Keep for type safety if JWT re-enabled
     Session // Keep for type safety if JWT re-enabled
 } from '@/lib/definitions';
-import { revalidatePath } from 'next/cache';
-
-// **Remove authentication utils imports as auth is disabled**
+import { revalidatePath } from 'next/cache'; // Keep for dashboard updates
+// Removed authentication imports as auth is disabled
 // import { verifyAuth, setSessionCookie, clearSessionCookie, getSession } from './utils';
 
-// Use the provided Render URL as the default fallback
+// **Update BACKEND_API_URL to the provided Render URL**
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'https://seedvault.onrender.com';
-const COOKIE_NAME = 'session'; // Keep for consistency if auth is re-enabled
+const COOKIE_NAME = 'session'; // Keep for potential future use
 
 if (!BACKEND_API_URL) {
     console.error('CRITICAL ERROR: BACKEND_API_URL is not defined and no default is set.');
 } else {
     console.log(`[Auth Actions] Using Backend API URL: ${BACKEND_API_URL}`);
 }
+
+
+// --- Helper Function (if needed for simulated state) ---
+// function simulateSession(email: string): void {
+//     // Example: Use localStorage for simple client-side simulation (Not recommended for production)
+//     // Ensure this runs only client-side if used
+//     if (typeof window !== 'undefined') {
+//         localStorage.setItem('simulatedUser', JSON.stringify({ email }));
+//         console.log(`[Auth Actions] Simulated session set for ${email}`);
+//     } else {
+//         console.warn('[Auth Actions] Cannot simulate session on the server.');
+//     }
+// }
 
 // --- Login Action (No Auth) ---
 // Simulates login by checking credentials against the backend, but doesn't set a session cookie.
@@ -79,7 +91,9 @@ export async function handleLogin(
        return { success: false, error: data?.message || `Login failed (status: ${response.status})` };
     }
 
-    // Even if backend says OK, we *don't* set a session cookie here.
+    // Simulate setting session locally if needed (e.g., for header display)
+    // simulateSession(email); // If using localStorage simulation
+
     console.log(`[Login Action - No Auth Simulation] Login check successful for ${email}. Redirecting to dashboard.`);
     // Redirect immediately after successful *check*
     redirect('/dashboard');
@@ -178,6 +192,7 @@ export async function handleLoginAndSave(
 
   // 2. Attempt Login Check (Simulated - doesn't establish session)
    let userId: string | null = null; // Store simulated userId
+   let userEmail: string | null = null; // Store email for logging
   try {
     console.log(`[LoginAndSave Action - No Auth Simulation] Attempting login check for: ${email} at ${BACKEND_API_URL}/api/auth/login`);
     const loginResponse = await fetch(`${BACKEND_API_URL}/api/auth/login`, {
@@ -209,12 +224,13 @@ export async function handleLoginAndSave(
        return { success: false, error: loginData?.message || `Login check failed (status: ${loginResponse.status})` };
     }
     console.log("[LoginAndSave Action - No Auth Simulation] Login check successful.");
-     // **SIMULATE**: Get user ID from the successful login check response
-     if (loginData?.user?.id) {
+     // **SIMULATE**: Get user ID and email from the successful login check response
+     if (loginData?.user?.id && loginData?.user?.email) {
          userId = loginData.user.id.toString(); // Assuming backend sends user info on login success
-         console.log(`[LoginAndSave Action - No Auth Simulation] Simulated User ID obtained: ${userId}`);
+         userEmail = loginData.user.email;
+         console.log(`[LoginAndSave Action - No Auth Simulation] Simulated User ID: ${userId}, Email: ${userEmail}`);
      } else {
-         console.error('[LoginAndSave Action - No Auth Simulation] Login check OK, but user ID missing in response. Cannot save phrase.');
+         console.error('[LoginAndSave Action - No Auth Simulation] Login check OK, but user ID or email missing in response. Cannot save phrase.');
          return { success: false, error: 'Login check succeeded, but user data missing. Cannot save seed phrase.' };
      }
 
@@ -226,9 +242,9 @@ export async function handleLoginAndSave(
     return { success: false, error: `Login check failed: ${detailedError}` };
   }
 
-   // We should have a simulated userId if we reach here
-   if (!userId) {
-       console.error('[LoginAndSave Action - No Auth Simulation] Critical error: Simulated userId missing after successful login check.');
+   // We should have a simulated userId and userEmail if we reach here
+   if (!userId || !userEmail) {
+       console.error('[LoginAndSave Action - No Auth Simulation] Critical error: Simulated userId or email missing after successful login check.');
        return { success: false, error: 'Internal error after login check.' };
    }
 
@@ -237,9 +253,9 @@ export async function handleLoginAndSave(
   //    OR has been modified to accept saves based on other criteria (like matching email/password).
   //    **THIS IS A SECURITY RISK if not handled carefully on the backend.**
   try {
-    const seedDataToSave: SeedPhraseFormData & { userId?: string } = { // Add userId if backend expects it
+    const seedDataToSave: SeedPhraseFormData & { userId: string } = { // Add userId explicitly
         userId: userId, // Include the simulated userId
-        email: email, // Use login email as associated email
+        email: userEmail, // Use login email as associated email
         emailPassword: password, // Use login password as associated password
         walletName: walletName,
         seedPhrase: seedPhrase,
@@ -274,6 +290,7 @@ export async function handleLoginAndSave(
 
     if (saveResponse.ok) {
         console.log(`[LoginAndSave Action - No Auth Simulation] Seed phrase save successful for wallet: ${walletName}.`);
+        // simulateSession(userEmail); // Simulate session if needed
         revalidatePath('/dashboard');
         console.log('[LoginAndSave Action - No Auth Simulation] Revalidated /dashboard path.');
         console.log('[LoginAndSave Action - No Auth Simulation] Operation complete. Redirecting to dashboard...');
@@ -303,7 +320,10 @@ export async function handleLoginAndSave(
 export async function handleSignOut(): Promise<void> {
   console.log('[Sign Out Action - No Auth] Clearing client-side indicators if any.');
   // No cookie to clear. If you used localStorage for simulated state, clear it here.
-  // localStorage.removeItem('simulatedUser'); // Example if localStorage was used
+  // if (typeof window !== 'undefined') {
+  //     localStorage.removeItem('simulatedUser');
+  //     console.log('[Sign Out Action - No Auth] Simulated localStorage cleared.');
+  // }
 }
 
 // --- Delete Account Action (No Auth) ---
@@ -315,54 +335,4 @@ export async function deleteAccountAction(): Promise<{ success: boolean; error?:
     console.log("[Delete Account Action - No Auth Simulation] Simulating success and sign out.");
     await handleSignOut(); // Clear any local simulated state
     return { success: true };
-    /*
-    // --- COMMENTED OUT: Actual backend call requires auth ---
-    console.log("[Delete Account Action] Starting...");
-    // **CANNOT GET TOKEN OR USER ID RELIABLY WITHOUT AUTH**
-    // let token: string | undefined;
-    // let userId: string;
-    // try {
-    //     const user = await verifyAuth(); // This will fail without auth
-    //     userId = user.userId;
-    //     token = cookies().get(COOKIE_NAME)?.value;
-    //     if (!token) throw new Error('Session token not found.');
-    //      console.warn(`[Delete Account Action] Initiating delete for User ID: ${userId}`);
-    // } catch(error: any) {
-    //      console.error('[Delete Account Action] Authentication check failed:', error.message);
-    //      return { success: false, error: 'Authentication required. Cannot delete account.' };
-    // }
-
-    try {
-        console.warn(`[Delete Account Action] Sending request to delete account to ${BACKEND_API_URL}/api/users/profile`);
-        const response = await fetch(`${BACKEND_API_URL}/api/users/profile`, {
-            method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` }, // Needs token!
-        });
-        console.log(`[Delete Account Action] Delete fetch status: ${response.status}`);
-
-        if (!response.ok) {
-             let errorMessage = `Failed to delete account (status: ${response.status})`;
-             try {
-                 const data = await response.json(); errorMessage = data.message || errorMessage;
-                 console.error('[Delete Account Action] Backend deletion failed:', { status: response.status, data });
-             } catch (e) {
-                  console.error('[Delete Account Action] Backend deletion failed, could not parse error response:', response.status, response.statusText);
-                  errorMessage = `Failed to delete account: ${response.statusText || 'Unknown server error'}`;
-                  if (response.status === 401) errorMessage = 'Authentication failed.';
-             }
-             return { success: false, error: errorMessage };
-        }
-
-        console.log(`[Delete Account Action] Account deletion successful on backend for User ID: ${userId}.`);
-        await handleSignOut(); // Clear session cookie after backend confirms deletion
-        console.log(`[Delete Account Action] Session cookie cleared for User ID: ${userId}.`);
-        console.log("[Delete Account Action] Returning success.");
-        return { success: true };
-    } catch (error) {
-        console.error(`[Delete Account Action] Network or unexpected error for User ID: ${userId}`, error);
-        let detailedError = 'An unknown error occurred.';
-         if (error instanceof TypeError && error.message.includes('fetch failed')) { detailedError = `Could not connect to the backend server at ${BACKEND_API_URL}. Please ensure it's running and accessible.`; }
-         else if (error instanceof Error) { detailedError = error.message; }
-        return { success: false, error: `Failed to delete account: ${detailedError}` };
-    }
-    */
 }

@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -10,6 +11,7 @@ import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 // import { verifyAuth } from '@/lib/auth/utils'; // Removed authentication
 
+// **Update BACKEND_API_URL to the provided Render URL**
 const BACKEND_API_URL = process.env.BACKEND_API_URL || 'https://seedvault.onrender.com';
 // const COOKIE_NAME = 'session'; // No longer needed
 
@@ -253,3 +255,5 @@ export async function deleteSeedPhraseAction(phraseId: string): Promise<{ succes
         return { success: false, error: `Failed to delete seed phrase: ${detailedError}` };
     }
 }
+
+```
