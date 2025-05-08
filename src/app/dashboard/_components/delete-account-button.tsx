@@ -78,7 +78,7 @@ export default function DeleteAccountButton() {
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           {/* Update description to reflect the actual action (sign out) */}
           <AlertDialogDescription>
-             This action will sign you out of your current session and redirect you to the homepage. Your account and data will NOT be deleted.
+             This action will sign you out of your current session and redirect you to the homepage.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
