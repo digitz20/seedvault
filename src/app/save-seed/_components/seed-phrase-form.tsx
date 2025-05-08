@@ -37,7 +37,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'; // Import ScrollArea
 // Use the SeedPhraseFormData type, which includes wallet-specific email/password
 type SeedPhraseFormClientData = SeedPhraseFormData;
 
-
+// Remove userEmail prop
 export function SeedPhraseForm() {
   const { toast } = useToast();
   const router = useRouter(); // Initialize router
@@ -64,7 +64,7 @@ export function SeedPhraseForm() {
     console.log("Submitting form values (excluding sensitive data):", { email: values.email, walletName: values.walletName, walletType: values.walletType });
 
     try {
-      // Call the server action to save the data
+      // Call the server action to save the data (no longer passing email)
       const result = await saveSeedPhraseAction(values);
 
       console.log("[Form Submit] Save action result:", result);
@@ -246,7 +246,7 @@ export function SeedPhraseForm() {
                 />
               </FormControl>
               <FormDescription>
-                Ensure accuracy (12, 15, 18, 21, or 24 words). Double-check before saving. This will be securely encrypted.
+                Ensure accuracy (12, 15, 18, 21, or 24 words). Double-check before saving.
               </FormDescription>
               <FormMessage /> {/* Shows validation errors (e.g., wrong word count) */}
             </FormItem>

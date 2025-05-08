@@ -8,14 +8,20 @@ import { verifyAuth } from '@/lib/auth/utils'; // Import verifyAuth
 import { redirect } from 'next/navigation'; // Import redirect
 
 export default async function SaveSeedPage() {
-   // Verify authentication - redirect if not logged in
+   // **Rigorous Authentication Check:** Verify authentication using verifyAuth.
+   // This will throw an error if the user is not authenticated, which the middleware
+   // should ideally catch first, but this provides a fallback.
    try {
-       await verifyAuth();
+       console.log("[Save Seed Page] Verifying authentication...");
+       await verifyAuth(); // Throws if not authenticated
        console.log("[Save Seed Page] User authenticated.");
    } catch (error) {
-        console.warn("[Save Seed Page] User not authenticated. Redirecting to login.");
+        console.warn("[Save Seed Page] verifyAuth failed (this should have been caught by middleware). Redirecting to login.");
        redirect('/login?message=Please log in to save a seed phrase.');
    }
+
+   // If we reach here, the user is authenticated.
+   console.log("[Save Seed Page] Rendering save seed form for authenticated user.");
 
   return (
     <div className="container flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative"> {/* Added relative positioning */}
@@ -33,13 +39,13 @@ export default async function SaveSeedPage() {
             Enter the details for the wallet or service whose seed phrase you want to securely store.
              <br />
              <span className="mt-1 block text-xs font-semibold text-destructive">
-               Warning: Never share your seed phrase with anyone. SeedVault encrypts your data, but security starts with you.
+               Warning: Never share your seed phrase with anyone. SeedVault cannot recover lost data.
              </span>
           </CardDescription>
         </CardHeader>
         <CardContent>
            {/* Pass userId to the form if needed, or rely on action to get it */}
-           <SeedPhraseForm />
+           <SeedPhraseForm /> {/* Removed userEmail prop */}
         </CardContent>
       </Card>
     </div>
