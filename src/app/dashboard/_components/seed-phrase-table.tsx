@@ -35,7 +35,8 @@ import { Eye, Loader2, Copy, Check, AlertTriangle, LockKeyhole, EyeOff, Trash2, 
 import type { SeedPhraseMetadata, RevealedSeedPhraseData } from "@/lib/definitions";
 import { useToast } from '@/hooks/use-toast';
 // Import reveal action, REMOVE delete action import
-import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
+// Simulating no auth, so actions are disabled/not called
+// import { revealSeedPhraseAction } from '../_actions/dashboard-actions';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -148,32 +149,35 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
     setRevealedData(null);
     setIsRevealModalOpen(true);
 
-    try {
-      const result = await revealSeedPhraseAction(phraseId);
-      if (result.data) {
-        setRevealedData(result.data);
-      } else {
+    // Simulate API call delay (remove in production)
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Find the phrase locally (as backend call is bypassed)
+    const phraseMeta = phrases.find(p => p._id === phraseId);
+    if (phraseMeta) {
+        // Simulate revealed data (replace with actual API call result if needed)
+        const simulatedRevealed: RevealedSeedPhraseData = {
+            _id: phraseMeta._id,
+            walletName: phraseMeta.walletName,
+            walletType: phraseMeta.walletType,
+            email: `associated-${phraseId.substring(0,5)}@email.com`, // Placeholder
+            emailPassword: `password-${phraseId.substring(0,5)}`, // Placeholder
+            seedPhrase: `simulated seed phrase for wallet ${phraseId.substring(0,5)} twelve words example demo only test` // Placeholder
+        };
+        setRevealedData(simulatedRevealed);
+    } else {
         toast({
-          variant: 'destructive',
-          title: 'Reveal Failed',
-          description: result.error || 'Could not retrieve seed phrase details.',
+            variant: 'destructive',
+            title: 'Reveal Failed',
+            description: 'Could not find phrase details locally.',
         });
         setIsRevealModalOpen(false);
-      }
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'An unexpected error occurred while revealing the phrase.',
-      });
-      console.error("Reveal error:", error);
-      setIsRevealModalOpen(false);
-    } finally {
-      setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
     }
+
+    setIsLoading(prev => ({ ...prev, [`reveal-${phraseId}`]: false }));
   };
 
-  // Function to handle deleting the entry from the local UI state only
+  // Function to handle removing the entry from the local UI state only
   const handleLocalDeleteConfirm = (phraseId: string) => {
      setIsLoading(prev => ({ ...prev, [`delete-${phraseId}`]: true }));
      const phraseBeingDeleted = phraseToDelete;
@@ -279,7 +283,7 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
                       <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view. The data will remain in the database but won't be shown here.
+                            This will remove the entry &quot;{phraseToDelete?.walletName}&quot; from your view.
                           </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -425,3 +429,6 @@ export function SeedPhraseTable({ phrases: initialPhrases }: SeedPhraseTableProp
     </>
   );
 }
+
+// Add default export
+export default SeedPhraseTable;

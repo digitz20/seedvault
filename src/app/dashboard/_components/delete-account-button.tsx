@@ -19,43 +19,32 @@ import { Trash2, Loader2 } from 'lucide-react'; // Using Trash2 icon for deletio
 import { useToast } from '@/hooks/use-toast';
 // REMOVE import of deleteAccountAction
 // Import handleSignOut instead
-import { handleSignOut } from '@/lib/auth/actions';
+// Simulating no auth, no sign out action needed
+// import { handleSignOut } from '@/lib/auth/actions';
 
 export default function DeleteAccountButton() {
   const router = useRouter();
   const { toast } = useToast();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false); // Keep loading state for sign out
+  const [isDeleting, setIsDeleting] = useState(false); // Keep loading state for sign out/redirect
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true); // Start loading
     setConfirmOpen(false); // Close dialog immediately
 
-    try {
-        // REMOVE call to deleteAccountAction()
-        // ADD call to handleSignOut()
-        await handleSignOut();
+    // Simulate sign-out/delete process (no backend call)
+    toast({
+        title: 'Action Simulated', // Update message
+        description: 'Returning to homepage...',
+        duration: 1500,
+    });
+    // Redirect to homepage after simulated sign out
+    setTimeout(() => {
+        router.push('/');
+        router.refresh(); // Force refresh to clear any potentially cached user state
+        // setIsDeleting(false); // No need to set here due to redirect
+    }, 1500);
 
-        toast({
-            title: 'Signed Out', // Update message
-            description: 'You have been signed out. Redirecting...',
-        });
-        // Redirect to homepage after sign out
-        setTimeout(() => {
-            router.push('/');
-            router.refresh(); // Force refresh to clear any potentially cached user state
-        }, 1500);
-
-    } catch (error) {
-        console.error("Sign out error (from Delete Account button):", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'An unexpected error occurred while signing out.',
-        });
-        setIsDeleting(false); // Stop loading on error
-    }
-    // Do not set isDeleting to false on success path because of redirect
   };
 
   return (
@@ -78,7 +67,7 @@ export default function DeleteAccountButton() {
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           {/* Update description to reflect the actual action (sign out) */}
           <AlertDialogDescription>
-             This action will sign you out of your current session and redirect you to the homepage.
+             This action will return you to the homepage.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -88,12 +77,10 @@ export default function DeleteAccountButton() {
              className="bg-destructive hover:bg-destructive/90"
             >
              {/* Update action button text to reflect sign out */}
-             Yes, Sign Me Out
+             Yes, Return to Home
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
   );
 }
-
-    
