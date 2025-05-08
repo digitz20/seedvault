@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/form';
 import { Loader2, UserPlus, Mail, KeyRound, Eye, EyeOff, AlertTriangle } from 'lucide-react'; // Import icons
 
+// No need for NEXT_PUBLIC_BACKEND_API_URL here as the action handles the URL
+
 export function SignupForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -62,14 +64,19 @@ export function SignupForm() {
          // If specific error is "Email already exists", focus the email field
           if (result.error?.toLowerCase().includes('email already exists')) {
               form.setError('email', { type: 'server', message: 'Email already exists.' });
+          } else if (result.error?.includes('connect to the backend')) {
+               form.setError('root.serverError', { type: 'server', message: 'Could not reach the signup server. Please try again later.' });
           }
       }
     } catch (error) {
        console.error('Unexpected signup form error:', error);
        let detailedError = 'An unknown error occurred.';
-       if (error instanceof TypeError && error.message.includes('fetch failed')) {
-           detailedError = `Could not connect to the backend server at ${process.env.NEXT_PUBLIC_BACKEND_API_URL || 'http://localhost:3001'}. Please ensure it's running and accessible.`;
-       } else if (error instanceof Error) {
+       // Use the backend URL from the action for the error message if applicable
+       // (Though actions.ts handles this now)
+       // if (error instanceof TypeError && error.message.includes('fetch failed')) {
+       //     detailedError = `Could not connect to the backend server. Please ensure it's running.`;
+       // } else
+       if (error instanceof Error) {
            detailedError = error.message;
        }
        toast({
